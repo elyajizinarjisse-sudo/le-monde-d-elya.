@@ -1,0 +1,76 @@
+Loaded env from: /Users/sylvainrobert68hotmail.com/Documents/anti gravity 1/new project/indigo-clone/.env
+Fetching menu items from DB...
+Successfully fetched 69 items.
+┌─────────┬────┬────────────────────────────┬────────┬───────────┬────────────────────────────────────────────────────┐
+│ (index) │ id │ label                      │ parent │ type      │ path                                               │
+├─────────┼────┼────────────────────────────┼────────┼───────────┼────────────────────────────────────────────────────┤
+│ 0       │ 37 │ 'Boîtes'                   │ 36     │ 'link'    │ '/category/organisateurs/boites'                   │
+│ 1       │ 54 │ 'Occasions'                │ 53     │ 'section' │ null                                               │
+│ 2       │ 1  │ 'Livres'                   │ null   │ 'root'    │ '/category/livres'                                 │
+│ 3       │ 49 │ 'Affiches'                 │ 48     │ 'link'    │ '/category/impressions/affiches'                   │
+│ 4       │ 48 │ 'Numérique'                │ 47     │ 'section' │ null                                               │
+│ 5       │ 3  │ 'Nouveautés'               │ 2      │ 'link'    │ '/category/livres/nouveautes'                      │
+│ 6       │ 67 │ 'Livres'                   │ null   │ 'root'    │ '/category/livres'                                 │
+│ 7       │ 14 │ 'Albums illustrés'         │ 13     │ 'link'    │ '/category/livres/albums-illustres'                │
+│ 8       │ 2  │ 'Coups de cœur'            │ 1      │ 'section' │ null                                               │
+│ 9       │ 61 │ 'Peinture'                 │ 60     │ 'link'    │ '/category/creatif/peinture'                       │
+│ 10      │ 19 │ 'Par âge'                  │ 18     │ 'section' │ null                                               │
+│ 11      │ 20 │ 'Bébé (0-2 ans)'           │ 19     │ 'link'    │ '/category/jouets/bebe'                            │
+│ 12      │ 25 │ 'Jeux de société'          │ 24     │ 'link'    │ '/category/jouets/jeux-societe'                    │
+│ 13      │ 60 │ 'Activités'                │ 59     │ 'section' │ null                                               │
+│ 14      │ 8  │ 'Séries & Romans'          │ 7      │ 'link'    │ '/category/livres/series-romans'                   │
+│ 15      │ 31 │ 'Planification'            │ 30     │ 'section' │ null                                               │
+│ 16      │ 32 │ 'Agendas 2025'             │ 31     │ 'link'    │ '/category/organisateurs/agendas-2025'             │
+│ 17      │ 55 │ 'Anniversaire'             │ 54     │ 'link'    │ '/category/fete/anniversaire'                      │
+│ 18      │ 42 │ 'Maison'                   │ 41     │ 'section' │ null                                               │
+│ 19      │ 43 │ 'Coussins'                 │ 42     │ 'link'    │ '/category/deco/coussins'                          │
+│ 20      │ 50 │ 'Planners'                 │ 48     │ 'link'    │ '/category/impressions/planners'                   │
+│ 21      │ 9  │ 'Policiers'                │ 7      │ 'link'    │ '/category/livres/policiers'                       │
+│ 22      │ 38 │ 'Paniers'                  │ 36     │ 'link'    │ '/category/organisateurs/paniers'                  │
+│ 23      │ 44 │ 'Bougies'                  │ 42     │ 'link'    │ '/category/deco/bougies'                           │
+│ 24      │ 21 │ 'Tout-petits (3-5 ans)'    │ 19     │ 'link'    │ '/category/jouets/tout-petits'                     │
+│ 25      │ 68 │ 'Jouets'                   │ null   │ 'root'    │ '/category/jouets'                                 │
+│ 26      │ 24 │ 'Catégories'               │ 18     │ 'section' │ null                                               │
+│ 27      │ 36 │ 'Rangement'                │ 30     │ 'section' │ null                                               │
+│ 28      │ 26 │ 'Puzzles'                  │ 24     │ 'link'    │ '/category/jouets/puzzles'                         │
+│ 29      │ 62 │ 'Dessin'                   │ 60     │ 'link'    │ '/category/creatif/dessin'                         │
+│ 30      │ 4  │ 'Best-sellers'             │ 2      │ 'link'    │ '/category/livres/bestsellers'                     │
+│ 31      │ 7  │ 'Par genre'                │ 1      │ 'section' │ null                                               │
+│ 32      │ 15 │ 'Premières lectures'       │ 13     │ 'link'    │ '/category/livres/premieres-lectures'              │
+│ 33      │ 33 │ 'Calendriers Famille'      │ 31     │ 'link'    │ '/category/organisateurs/calendriers-famille'      │
+│ 34      │ 56 │ 'Mariage'                  │ 54     │ 'link'    │ '/category/fete/mariage'                           │
+│ 35      │ 18 │ 'Jouets'                   │ null   │ 'root'    │ '/category/jouets'                                 │
+│ 36      │ 45 │ 'Cadres'                   │ 42     │ 'link'    │ '/category/deco/cadres'                            │
+│ 37      │ 5  │ 'Recommandations'          │ 2      │ 'link'    │ '/category/livres/recommandations'                 │
+│ 38      │ 10 │ 'Science-fiction'          │ 7      │ 'link'    │ '/category/livres/science-fiction'                 │
+│ 39      │ 13 │ 'Jeunesse'                 │ 1      │ 'section' │ null                                               │
+│ 40      │ 16 │ 'Romans ado'               │ 13     │ 'link'    │ '/category/livres/romans-ado'                      │
+│ 41      │ 22 │ 'Enfants (6-9 ans)'        │ 19     │ 'link'    │ '/category/jouets/enfants'                         │
+│ 42      │ 27 │ 'Lego'                     │ 24     │ 'link'    │ '/category/jouets/lego'                            │
+│ 43      │ 30 │ 'Organisateurs'            │ null   │ 'root'    │ '/category/organisateurs'                          │
+│ 44      │ 34 │ 'Planificateurs Scolaires' │ 31     │ 'link'    │ '/category/organisateurs/planificateurs-scolaires' │
+│ 45      │ 51 │ 'Cartes'                   │ 48     │ 'link'    │ '/category/impressions/cartes'                     │
+│ 46      │ 57 │ 'Naissance'                │ 54     │ 'link'    │ '/category/fete/naissance'                         │
+│ 47      │ 69 │ 'Déco'                     │ null   │ 'root'    │ '/category/deco'                                   │
+│ 48      │ 39 │ 'Accessoires'              │ 36     │ 'link'    │ '/category/organisateurs/trousses'                 │
+│ 49      │ 63 │ "Cahier d'activités"       │ 60     │ 'link'    │ '/category/creatif/ecriture'                       │
+│ 50      │ 41 │ 'Déco'                     │ null   │ 'root'    │ '/category/deco'                                   │
+│ 51      │ 11 │ 'Biographies'              │ 7      │ 'link'    │ '/category/livres/biographies'                     │
+│ 52      │ 40 │ 'Étiquettes'               │ 36     │ 'link'    │ '/category/organisateurs/etiquettes'               │
+│ 53      │ 46 │ 'Vases'                    │ 42     │ 'link'    │ '/category/deco/vases'                             │
+│ 54      │ 23 │ 'Ados '                    │ 19     │ 'link'    │ '/category/jouets/ados'                            │
+│ 55      │ 58 │ 'Saisonnier'               │ 54     │ 'link'    │ '/category/fete/saisonnier'                        │
+│ 56      │ 52 │ 'Coloriages PDF'           │ 48     │ 'link'    │ '/category/impressions/coloriages-pdf'             │
+│ 57      │ 28 │ 'Poupées'                  │ 24     │ 'link'    │ '/category/jouets/poupees'                         │
+│ 58      │ 17 │ 'BD & Mangas'              │ 13     │ 'link'    │ '/category/livres/bd-mangas'                       │
+│ 59      │ 6  │ 'Auteurs canadiens'        │ 2      │ 'link'    │ '/category/livres/auteurs-canadiens'               │
+│ 60      │ 64 │ 'Coloriage Enfants'        │ 60     │ 'link'    │ '/category/creatif/coloriage-enfants'              │
+│ 61      │ 35 │ 'Bloc-notes'               │ 31     │ 'link'    │ '/category/organisateurs/bloc-notes'               │
+│ 62      │ 12 │ 'Cuisine'                  │ 7      │ 'link'    │ '/category/livres/cuisine'                         │
+│ 63      │ 29 │ 'Arts & Bricolage'         │ 24     │ 'link'    │ '/category/jouets/arts-bricolage'                  │
+│ 64      │ 65 │ 'Coloriage Adultes'        │ 60     │ 'link'    │ '/category/creatif/coloriage-adultes'              │
+│ 65      │ 47 │ 'Impressions'              │ null   │ 'root'    │ '/category/impressions'                            │
+│ 66      │ 53 │ 'Fête'                     │ null   │ 'root'    │ '/category/fete'                                   │
+│ 67      │ 59 │ 'Créatif'                  │ null   │ 'root'    │ '/category/creatif'                                │
+│ 68      │ 66 │ 'Soldes'                   │ null   │ 'root'    │ '/category/soldes'                                 │
+└─────────┴────┴────────────────────────────┴────────┴───────────┴────────────────────────────────────────────────────┘
