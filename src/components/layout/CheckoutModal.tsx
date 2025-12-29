@@ -88,6 +88,18 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
             if (itemsError) throw itemsError;
 
+            // 4. Send Confirmation Email (Async - don't block success)
+            fetch('/.netlify/functions/send-order-confirmation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: formData.email,
+                    order: order,
+                    items: items,
+                    total: cartTotal
+                })
+            }).catch(err => console.error('Failed to send confirmation email:', err));
+
             // 3. Clear Cart & Show Success
             clearCart();
             setStep('success');
