@@ -1,9 +1,12 @@
+
 import { useState } from 'react';
 import { X, CreditCard, Lock, Loader2, MapPin, User, Mail } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { calculateCheckoutTotals } from '../../lib/checkout-logic';
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
@@ -12,6 +15,20 @@ interface CheckoutModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
+
+const PROVINCES = [
+    { code: 'QC', name: 'Québec' },
+    { code: 'ON', name: 'Ontario' },
+    { code: 'BC', name: 'Colombie-Britannique' },
+    { code: 'AB', name: 'Alberta' },
+    { code: 'MB', name: 'Manitoba' },
+    { code: 'NB', name: 'Nouveau-Brunswick' },
+    { code: 'NL', name: 'Terre-Neuve-et-Labrador' },
+    { code: 'NS', name: 'Nouvelle-Écosse' },
+    { code: 'PE', name: 'Île-du-Prince-Édouard' },
+    { code: 'SK', name: 'Saskatchewan' },
+    { code: 'other', name: 'Autre (Taxes fédérales seulement)' }
+];
 
 export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     const { items, cartTotal, clearCart } = useCart();
@@ -24,8 +41,20 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         email: '',
         address: '',
         city: '',
+        province: 'QC',
         zipCode: ''
     });
+
+    // Calculate totals dynamically
+    const totalWeight = items.reduce((acc, item) => acc + ((item.weight || 0) * item.quantity), 0);
+    const totals = calculateCheckoutTotals(cartTotal, formData.province, totalWeight);
+
+    // PalPal Config (Mock ID for now if not provided)
+    const paypalOptions = {
+        clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "AdGEU1t6mmF3jrqGOxE",
+        currency: "CAD",
+        intent: "capture",
+    };
 
     if (!isOpen) return null;
 
@@ -37,7 +66,8 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             const response = await fetch('/.netlify/functions/create-payment-intent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items, amount: cartTotal }),
+                // IMPORTANT: We send the FINAL TOTAL (inc. tax/shipping) to Stripe
+                body: JSON.stringify({ items, amount: totals.total }),
             });
 
             if (!response.ok) {
@@ -52,6 +82,12 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             setStep('payment');
         } catch (error: any) {
             console.error('Error:', error);
+            // DEV MODE FALLBACK
+            if (import.meta.env.DEV && error.message.includes('backend de paiement n\'est pas accessible')) {
+                alert("⚠️ Mode Développement : Backend introuvable.\n\nPassage direct à l'étape Paiement pour tester l'interface (PayPal).\n\nNOTE : Le paiement par Carte Bancaire (Stripe) ne fonctionnera pas sans le backend.");
+                setStep('payment');
+                return;
+            }
             alert(error.message || "Une erreur est survenue");
         }
     };
@@ -65,9 +101,9 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     {
                         customer_name: formData.fullName,
                         customer_email: formData.email,
-                        shipping_address: `${formData.address}, ${formData.city} ${formData.zipCode}`,
-                        total: cartTotal,
-                        status: 'processing', // Paid via Stripe
+                        shipping_address: `${formData.address}, ${formData.city} (${formData.province}) ${formData.zipCode}`,
+                        total: totals.total, // Total Paid
+                        status: 'processing',
                         items_count: items.reduce((acc, item) => acc + item.quantity, 0)
                     }
                 ])
@@ -88,7 +124,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
             if (itemsError) throw itemsError;
 
-            // 4. Send Confirmation Email (Async - don't block success)
+            // 3. Send Confirmation Email (Async)
             fetch('/.netlify/functions/send-order-confirmation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -96,11 +132,11 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     email: formData.email,
                     order: order,
                     items: items,
-                    total: cartTotal
+                    total: totals.total
                 })
             }).catch(err => console.error('Failed to send confirmation email:', err));
 
-            // 3. Clear Cart & Show Success
+            // 4. Clear Cart & Show Success
             clearCart();
             setStep('success');
 
@@ -178,21 +214,103 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Province Selector */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Province / Territoire</label>
+                                    <select
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                                        value={formData.province}
+                                        onChange={e => setFormData({ ...formData, province: e.target.value })}
+                                    >
+                                        {PROVINCES.map(p => (
+                                            <option key={p.code} value={p.code}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Order Summary (Replacing Cart Total) */}
+                                <div className="bg-gray-50 p-4 rounded-xl space-y-2 border border-blue-100">
+                                    <div className="flex justify-between text-gray-600 text-sm">
+                                        <span>Sous-total</span>
+                                        <span>{totals.subtotal.toFixed(2)} $</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600 text-sm">
+                                        <span>Livraison {totals.shipping === 0 && <span className="text-green-600 font-bold">(OFFERTE)</span>}</span>
+                                        <span>{totals.shipping.toFixed(2)} $</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600 text-sm">
+                                        <span>Taxes ({totals.taxDetails?.name})</span>
+                                        <span>{totals.tax.toFixed(2)} $</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-lg text-gray-900">
+                                        <span>Total</span>
+                                        <span>{totals.total.toFixed(2)} $</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="pt-4 flex items-center justify-between border-t border-gray-100">
-                                <span className="font-bold text-lg">{cartTotal.toFixed(2)} $</span>
-                                <button type="submit" className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-opacity-90 transition-colors">
-                                    Continuer vers le paiement
+                                <span className="text-xs text-gray-400">* Taxes calculées selon la province</span>
+                                <button type="submit" className="bg-primary text-white px-6 py-3 rounded-xl font-bold hover:bg-opacity-90 transition-colors shadow-lg shadow-primary/20">
+                                    Payer {totals.total.toFixed(2)} $
                                 </button>
                             </div>
                         </form>
                     )}
 
-                    {step === 'payment' && clientSecret && (
-                        <Elements stripe={stripePromise} options={{ clientSecret }}>
-                            <PaymentForm onSuccess={handlePaymentSuccess} amount={cartTotal} />
-                        </Elements>
+                    {step === 'payment' && (
+                        <div className="space-y-6">
+                            {/* Debug Container - Always Visible */}
+                            <div className="w-full min-h-[150px] bg-gray-50 rounded-xl border-2 border-dashed border-red-300 p-4 relative">
+                                <p className="absolute -top-3 left-4 bg-white px-2 text-xs text-red-500 font-bold">Zone PayPal</p>
+
+                                <PayPalScriptProvider options={{
+                                    clientId: "test", // FORCE TEST MODE to verify rendering
+                                    currency: "CAD",
+                                    components: "buttons",
+                                }}>
+                                    <PayPalButtons
+                                        style={{ layout: "vertical", shape: "rect" }}
+                                        forceReRender={[totals.total]}
+                                        createOrder={(data, actions) => {
+                                            return actions.order.create({
+                                                intent: "CAPTURE", // Fix TS Error
+                                                purchase_units: [{
+                                                    amount: {
+                                                        currency_code: "CAD",
+                                                        value: totals.total.toFixed(2)
+                                                    }
+                                                }]
+                                            });
+                                        }}
+                                        onApprove={async (data, actions) => {
+                                            if (actions.order) {
+                                                await actions.order.capture();
+                                                handlePaymentSuccess();
+                                            }
+                                        }}
+                                        onError={(err) => {
+                                            console.error("PayPal Failed:", err);
+                                            alert("Erreur PayPal: " + JSON.stringify(err));
+                                        }}
+                                    />
+                                </PayPalScriptProvider>
+                            </div>
+
+                            <div className="relative flex py-2 items-center">
+                                <div className="flex-grow border-t border-gray-200"></div>
+                                <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OU CARTE BANCAIRE</span>
+                                <div className="flex-grow border-t border-gray-200"></div>
+                            </div>
+
+                            {/* Stripe Section */}
+                            {clientSecret && (
+                                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                                    <PaymentForm onSuccess={handlePaymentSuccess} amount={totals.total} />
+                                </Elements>
+                            )}
+                        </div>
                     )}
 
                     {step === 'success' && (
@@ -233,8 +351,7 @@ function PaymentForm({ onSuccess, amount }: { onSuccess: () => void, amount: num
         const { error } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                return_url: window.location.origin, // Not used if redirect: 'if_required' is default or handled inline? 
-                // Actually paymentElement handles redirect or not. We can capture handleNextAction if needed but usually check error.
+                return_url: window.location.origin,
             },
             redirect: 'if_required',
         });
@@ -243,7 +360,6 @@ function PaymentForm({ onSuccess, amount }: { onSuccess: () => void, amount: num
             setErrorMessage(error.message || 'Paiement échoué');
             setLoading(false);
         } else {
-            // Success!
             onSuccess();
         }
     };

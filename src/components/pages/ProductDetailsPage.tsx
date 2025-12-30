@@ -213,6 +213,13 @@ export function ProductDetailsPage() {
                                     <span className="text-xs font-bold text-gray-900">Retours Gratuits</span>
                                     <span className="text-[10px] text-gray-500">Sous 30 jours</span>
                                 </div>
+                                {product.weight > 0 && (
+                                    <div className="flex flex-col items-center text-center gap-2 md:col-span-3 mt-4 border-t pt-4 border-gray-100 w-full">
+                                        <div className="text-xs text-gray-500">
+                                            Poids du colis : <span className="font-medium text-gray-900">{product.weight} g</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

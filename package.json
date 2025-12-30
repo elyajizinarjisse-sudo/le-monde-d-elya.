@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@netlify/functions": "^5.1.2",
+    "@paypal/react-paypal-js": "^8.9.2",
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.0",
     "@supabase/supabase-js": "^2.88.0",

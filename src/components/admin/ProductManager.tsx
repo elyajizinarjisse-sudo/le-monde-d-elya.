@@ -15,6 +15,7 @@ export function ProductManager() {
     const [newProduct, setNewProduct] = useState({
         title: '',
         price: '',
+        weight: '',
         category: '', // Will start empty and populate after fetch
         subcategory: '',
         images: [] as { url: string; alt: string }[],
@@ -112,6 +113,7 @@ export function ProductManager() {
             image_alt: mainImageAlt,
             // New JSONB field
             images: newProduct.images,
+            weight: parseFloat(newProduct.weight) || 0,
             description: newProduct.description,
             category: newProduct.category,
             subcategory: newProduct.subcategory,
@@ -170,6 +172,7 @@ export function ProductManager() {
         setNewProduct({
             title: product.title,
             price: product.price.toString(),
+            weight: product.weight?.toString() || '',
             category: product.category || (categories[0]?.label || ''),
             subcategory: product.subcategory || '',
             images: images,
@@ -188,6 +191,7 @@ export function ProductManager() {
         setNewProduct({
             title: '',
             price: '',
+            weight: '',
             category: categories.length > 0 ? categories[0].label : '',
             subcategory: '',
             images: [],
@@ -288,6 +292,17 @@ export function ProductManager() {
                                 onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
                                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                                 placeholder="0.00"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Poids (g)</label>
+                            <input
+                                type="number"
+                                value={newProduct.weight}
+                                onChange={e => setNewProduct({ ...newProduct, weight: e.target.value })}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                placeholder="Ex: 500"
                             />
                         </div>
 
@@ -448,7 +463,7 @@ export function ProductManager() {
                             </button>
                         </div>
                     </form>
-                </div >
+                </div>
             )
             }
 
@@ -504,6 +519,6 @@ export function ProductManager() {
                     </table>
                 )}
             </div>
-        </div >
+        </div>
     );
 }

@@ -16,6 +16,7 @@ export interface Product {
     category?: string;
     subcategory?: string;
     aspect_ratio?: 'portrait' | 'square' | 'landscape';
+    weight?: number;
 }
 
 interface ProductCardProps {
