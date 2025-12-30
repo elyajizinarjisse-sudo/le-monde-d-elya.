@@ -49,12 +49,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     const totalWeight = items.reduce((acc, item) => acc + ((item.weight || 0) * item.quantity), 0);
     const totals = calculateCheckoutTotals(cartTotal, formData.province, totalWeight);
 
-    // PalPal Config (Mock ID for now if not provided)
-    const paypalOptions = {
-        clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || "AdGEU1t6mmF3jrqGOxE",
-        currency: "CAD",
-        intent: "capture",
-    };
+
 
     if (!isOpen) return null;
 
@@ -273,7 +268,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                                     <PayPalButtons
                                         style={{ layout: "vertical", shape: "rect" }}
                                         forceReRender={[totals.total]}
-                                        createOrder={(data, actions) => {
+                                        createOrder={(_data, actions) => {
                                             return actions.order.create({
                                                 intent: "CAPTURE", // Fix TS Error
                                                 purchase_units: [{
@@ -284,7 +279,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                                                 }]
                                             });
                                         }}
-                                        onApprove={async (data, actions) => {
+                                        onApprove={async (_data, actions) => {
                                             if (actions.order) {
                                                 await actions.order.capture();
                                                 handlePaymentSuccess();
