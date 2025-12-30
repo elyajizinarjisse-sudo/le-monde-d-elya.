@@ -267,6 +267,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                                 }}>
                                     <PayPalButtons
                                         style={{ layout: "vertical", shape: "rect" }}
+                                        fundingSource="paypal" // Force only PayPal button (Yellow)
                                         forceReRender={[totals.total]}
                                         createOrder={(_data, actions) => {
                                             return actions.order.create({
