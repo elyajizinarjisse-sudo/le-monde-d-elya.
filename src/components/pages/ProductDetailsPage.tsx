@@ -62,10 +62,36 @@ export function ProductDetailsPage() {
         );
     }
 
-    // Handle price display robustness (string vs number)
-    const displayPrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+    // Variant State
+    const [selectedVariant, setSelectedVariant] = useState<any>(null);
+
+    // Initial load handling for variants
+    useEffect(() => {
+        if (product && product.variants && product.variants.length > 0 && !selectedVariant) {
+            setSelectedVariant(product.variants[0]);
+            // Also set initial image from variant if available
+            if (product.variants[0].image) {
+                setSelectedImage(product.variants[0].image);
+            }
+        }
+    }, [product]);
+
+    // Handle variant selection
+    const handleVariantSelect = (variant: any) => {
+        setSelectedVariant(variant);
+        if (variant.image) {
+            setSelectedImage(variant.image);
+        }
+    };
+
+    // Calculate display values based on variant or base product
+    const currentPrice = selectedVariant ? (parseFloat(selectedVariant.selling_price) || parseFloat(selectedVariant.price)) : (typeof product.price === 'string' ? parseFloat(product.price) : product.price);
+    const displayPrice = currentPrice;
+
+    // Original price logic (can be refined per variant if data exists, for now uses base)
     const displayOriginalPrice = product.originalPrice ? (typeof product.originalPrice === 'string' ? parseFloat(product.originalPrice) : product.originalPrice) : null;
-    const rating = product.rating || 5; // Default 5 stars for new products
+
+    const rating = product.rating || 5;
     const reviews = product.reviews || 0;
 
     // Verify images array structure
@@ -81,8 +107,6 @@ export function ProductDetailsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 lg:py-12">
-            {/* Debug section removed */}
-
             <Helmet>
                 <title>{`${product.title} - Le Monde d'Elya`}</title>
                 <meta name="description" content={`Achetez ${product.title} sur Le Monde d'Elya. ${product.category}.`} />
@@ -168,7 +192,7 @@ export function ProductDetailsPage() {
                                     <span className="text-sm text-gray-500 underline">{reviews} avis client</span>
                                 </div>
 
-                                <div className="text-4xl font-bold text-primary mb-8 flex items-baseline gap-4">
+                                <div className="text-4xl font-bold text-primary mb-6 flex items-baseline gap-4">
                                     {product.isSale && displayOriginalPrice ? (
                                         <>
                                             {displayPrice.toFixed(2)} $
@@ -178,6 +202,32 @@ export function ProductDetailsPage() {
                                         <span>{displayPrice.toFixed(2)} $</span>
                                     )}
                                 </div>
+
+                                {/* Variant Selector */}
+                                {product.variants && product.variants.length > 0 && (
+                                    <div className="mb-8">
+                                        <label className="text-sm font-bold text-gray-700 uppercase mb-3 block">Variantes Disponibles</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {product.variants.map((variant: any, idx: number) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleVariantSelect(variant)}
+                                                    className={`group relative px-4 py-2 border rounded-lg text-sm font-medium transition-all ${selectedVariant?.name === variant.name
+                                                        ? 'border-orange-500 bg-orange-50 text-orange-700 ring-1 ring-orange-500'
+                                                        : 'border-gray-200 hover:border-orange-300 text-gray-600'
+                                                        }`}
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        {variant.image && (
+                                                            <img src={variant.image} className="w-6 h-6 rounded-full object-cover border border-gray-100" />
+                                                        )}
+                                                        {variant.name}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="prose prose-sm text-gray-600 mb-8 font-sans">
                                     {/* Display fetched Description or Fallback */}
@@ -189,7 +239,7 @@ export function ProductDetailsPage() {
                                 </div>
 
                                 <button
-                                    onClick={() => addToCart(product)}
+                                    onClick={() => addToCart({ ...product, price: displayPrice, variant: selectedVariant })}
                                     className="w-full md:w-auto px-8 py-4 bg-primary hover:bg-opacity-90 text-white font-bold rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] shadow-lg shadow-primary/30"
                                 >
                                     <ShoppingBag size={24} />

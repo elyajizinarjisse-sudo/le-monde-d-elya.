@@ -61,7 +61,10 @@ function HomePageContent() {
 
   useEffect(() => {
     const fetchHomeProducts = async () => {
-      const { data, error } = await supabase.from('products').select('*');
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false }); // Fix: Ensure latest are first
       if (error) console.error('Error fetching home products:', error);
       if (data) setProducts(data);
     };

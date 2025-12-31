@@ -3,13 +3,19 @@ import type { Product } from '../components/home/ProductCard';
 
 export interface CartItem extends Product {
     quantity: number;
+    cartItemId: string; // Unique ID for the cart entry (product.id + variant)
+    variant?: {
+        name: string;
+        price?: string;
+        image?: string;
+    };
 }
 
 interface CartContextType {
     items: CartItem[];
-    addToCart: (product: Product) => void;
-    removeFromCart: (productId: number) => void;
-    updateQuantity: (productId: number, quantity: number) => void;
+    addToCart: (product: Product & { variant?: any }) => void;
+    removeFromCart: (cartItemId: string) => void;
+    updateQuantity: (cartItemId: string, quantity: number) => void;
     clearCart: () => void;
     cartCount: number;
     cartTotal: number;
@@ -35,30 +41,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('cart', JSON.stringify(items));
     }, [items]);
 
-    const addToCart = (product: Product) => {
+    const addToCart = (product: Product & { variant?: any }) => {
         setItems(prev => {
-            const existing = prev.find(item => item.id === product.id);
+            // Create a unique key for this combination
+            const variantKey = product.variant ? product.variant.name : 'base';
+            const existing = prev.find(item => item.id === product.id && (item.variant?.name || 'base') === variantKey);
+
             if (existing) {
                 return prev.map(item =>
-                    item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                    item.cartItemId === existing.cartItemId ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
-            return [...prev, { ...product, quantity: 1 }];
+
+            // New item
+            return [...prev, {
+                ...product,
+                quantity: 1,
+                cartItemId: `${product.id}-${variantKey}-${Date.now()}`,
+                variant: product.variant
+            }];
         });
         setIsCartOpen(true);
     };
 
-    const removeFromCart = (productId: number) => {
-        setItems(prev => prev.filter(item => item.id !== productId));
+    const removeFromCart = (cartItemId: string) => {
+        setItems(prev => prev.filter(item => item.cartItemId !== cartItemId));
     };
 
-    const updateQuantity = (productId: number, quantity: number) => {
+    const updateQuantity = (cartItemId: string, quantity: number) => {
         if (quantity <= 0) {
-            removeFromCart(productId);
+            removeFromCart(cartItemId);
             return;
         }
         setItems(prev => prev.map(item =>
-            item.id === productId ? { ...item, quantity } : item
+            item.cartItemId === cartItemId ? { ...item, quantity } : item
         ));
     };
 

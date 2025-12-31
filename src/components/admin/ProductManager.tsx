@@ -22,7 +22,8 @@ export function ProductManager() {
         image: '', // Legacy support
         image_alt: '', // Legacy support
         description: '',
-        aspect_ratio: 'portrait' // 'portrait' | 'square' | 'landscape'
+        aspect_ratio: 'portrait', // 'portrait' | 'square' | 'landscape'
+        variants: [] as { name: string; price: string; selling_price?: string; image: string }[]
     });
 
     // Fetch products and categories
@@ -118,6 +119,7 @@ export function ProductManager() {
             category: newProduct.category,
             subcategory: newProduct.subcategory,
             aspect_ratio: newProduct.aspect_ratio,
+            variants: newProduct.variants, // Save detailed variants
             stock: 10,
             is_new: true
         };
@@ -179,7 +181,8 @@ export function ProductManager() {
             image: product.image,
             image_alt: product.image_alt,
             description: product.description || '',
-            aspect_ratio: product.aspect_ratio || 'portrait'
+            aspect_ratio: product.aspect_ratio || 'portrait',
+            variants: product.variants || []
         });
         setEditingId(product.id);
         setIsFormOpen(true);
@@ -198,7 +201,8 @@ export function ProductManager() {
             image: '',
             image_alt: '',
             description: '',
-            aspect_ratio: 'portrait'
+            aspect_ratio: 'portrait',
+            variants: []
         });
     };
 
@@ -433,6 +437,83 @@ export function ProductManager() {
                                 * La première image sera l'image principale. Définissez le texte alternatif pour chaque image pour un meilleur SEO.
                             </p>
 
+                            {/* Variants Section */}
+                            <div className="pt-2 border-t border-gray-200 mt-4">
+                                <label className="text-sm font-bold text-gray-700 block mb-3">Variantes & Prix</label>
+
+                                {newProduct.variants && newProduct.variants.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {newProduct.variants.map((variant: any, idx: number) => (
+                                            <div key={idx} className="flex flex-wrap gap-3 items-end bg-white p-3 border border-gray-200 rounded-lg">
+                                                <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded border border-gray-200 overflow-hidden">
+                                                    {variant.image ? (
+                                                        <img src={variant.image} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Plus size={16} /></div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-[150px]">
+                                                    <label className="text-xs text-gray-500 font-bold uppercase">Nom (Couleur/Taille)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={variant.name}
+                                                        onChange={(e) => {
+                                                            const newVariants = [...newProduct.variants];
+                                                            newVariants[idx].name = e.target.value;
+                                                            setNewProduct({ ...newProduct, variants: newVariants });
+                                                        }}
+                                                        className="w-full p-1.5 border rounded text-sm font-medium"
+                                                        placeholder="Ex: Rouge"
+                                                    />
+                                                </div>
+
+                                                <div className="w-24">
+                                                    <label className="text-xs text-gray-500 font-bold uppercase">Prix ($)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={variant.selling_price || variant.price}
+                                                        onChange={(e) => {
+                                                            const newVariants = [...newProduct.variants];
+                                                            newVariants[idx].selling_price = e.target.value;
+                                                            setNewProduct({ ...newProduct, variants: newVariants });
+                                                        }}
+                                                        className="w-full p-1.5 border rounded text-sm text-green-700 font-bold"
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newVariants = newProduct.variants.filter((_, i) => i !== idx);
+                                                        setNewProduct({ ...newProduct, variants: newVariants });
+                                                    }}
+                                                    className="p-2 text-gray-400 hover:text-red-500"
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-gray-500 italic mb-2">Aucune variante configurée. Le produit utilisera le prix principal.</div>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNewProduct({
+                                            ...newProduct,
+                                            variants: [...(newProduct.variants || []), { name: 'Nouvelle Option', price: newProduct.price, selling_price: newProduct.price, image: newProduct.images[0]?.url || '' }]
+                                        })
+                                    }}
+                                    className="mt-2 text-sm text-primary font-bold flex items-center gap-1 hover:underline"
+                                >
+                                    <Plus size={16} /> Ajouter une variante
+                                </button>
+                            </div>
+
                             <div className="pt-2 border-t border-gray-200 mt-4">
                                 <label className="text-sm font-medium text-gray-700 flex justify-between">
                                     Description détaillée
@@ -464,8 +545,7 @@ export function ProductManager() {
                         </div>
                     </form>
                 </div>
-            )
-            }
+            )}
 
             {/* Product List Table */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
