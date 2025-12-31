@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Package, Truck, ArrowRight, ExternalLink, Filter, Plus, Check, X, Trash2 } from 'lucide-react';
+import { Search, ShoppingCart, Package, Truck, ArrowRight, ExternalLink, Filter, Plus, Check, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatPrice } from '../../lib/currency';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart2, TrendingUp, DollarSign, ShoppingCart, Package, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { BarChart2, TrendingUp, DollarSign, ShoppingCart, Package, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface AnalyticsData {

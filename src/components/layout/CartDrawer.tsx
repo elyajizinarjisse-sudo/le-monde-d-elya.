@@ -63,21 +63,21 @@ export function CartDrawer() {
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1 border border-gray-100">
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
                                                 className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-primary disabled:opacity-50"
                                             >
                                                 <Minus size={12} />
                                             </button>
                                             <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
                                                 className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-primary"
                                             >
                                                 <Plus size={12} />
                                             </button>
                                         </div>
                                         <button
-                                            onClick={() => removeFromCart(item.id)}
+                                            onClick={() => removeFromCart(item.cartItemId)}
                                             className="text-gray-400 hover:text-red-500 transition-colors"
                                         >
                                             <Trash2 size={16} />
