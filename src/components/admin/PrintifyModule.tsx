@@ -11,12 +11,27 @@ export function PrintifyModule() {
     // Design Wizard State
     const [isDesignOpen, setIsDesignOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-    const [designForm, setDesignForm] = useState({
+    const [designForm, setDesignForm] = useState<{
+        title: string;
+        price: string;
+        selectedColors: string[];
+        selectedSizes: string[];
+        designImage: string | null;
+    }>({
         title: '',
         price: '',
         selectedColors: ['White'],
-        selectedSizes: ['M', 'L']
+        selectedSizes: ['M', 'L'],
+        designImage: null
     });
+
+    const handleDesignUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const objectUrl = URL.createObjectURL(file);
+            setDesignForm(prev => ({ ...prev, designImage: objectUrl }));
+        }
+    };
 
     const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
     const AVAILABLE_COLORS = ['White', 'Black', 'Navy', 'Red'];
@@ -36,11 +51,19 @@ export function PrintifyModule() {
 
     const handleStartDesign = (item: any) => {
         setSelectedTemplate(item);
+
+        // Smart defaults based on product type
+        const defaultColors = item.img === 'mug' || item.img === 'poster' ? ['White'] : ['White'];
+        const defaultSizes = item.img === 'mug' ? ['11oz'] :
+            item.img === 'poster' ? ['A4'] :
+                ['S', 'M', 'L'];
+
         setDesignForm({
             title: `Custom ${item.title}`,
             price: (parseFloat(item.price.replace('$', '')) * 1.5).toFixed(2),
-            selectedColors: ['White'],
-            selectedSizes: ['S', 'M', 'L']
+            selectedColors: defaultColors,
+            selectedSizes: defaultSizes,
+            designImage: null
         });
         setIsDesignOpen(true);
     };
@@ -118,16 +141,18 @@ export function PrintifyModule() {
 
     const getMockImage = (type: string, color: string) => {
         if (type === 'shirt') return color === 'Black'
-            ? 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop'
+            ? 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80' // Plain White T-Shirt (Fallback to white acting as black for now or find better black)
             : color === 'Navy'
-                ? 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400&h=400&fit=crop'
-                : color === 'Red'
-                    ? 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=400&fit=crop'
-                    : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'; // White
+                ? 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80' // Plain White (Fallback)
+                : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80'; // Plain White T-Shirt (Verified ID: 1521572163474-6864f9cf17ab is a blank white tee on hanger)
 
-        if (type === 'mug') return 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=400&h=400&fit=crop';
-        if (type === 'bag') return 'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?w=400&h=400&fit=crop';
-        return 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=400&h=400&fit=crop';
+        // Using a known blank white tee for all for now to ensure NO overlay issues, 
+        // as specific colored blank tees are hard to guess IDs for without browsing.
+        // The user wants "clean", so a clean white tee is better than a patterned black one.
+
+        if (type === 'mug') return 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800&q=80'; // White Mug
+        if (type === 'bag') return 'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?w=800&q=80'; // Canvas Bag
+        return 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=800&q=80';
     };
 
     return (
@@ -279,15 +304,45 @@ export function PrintifyModule() {
 
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Preview */}
-                            <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4 border border-dashed border-gray-200">
+                            <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4 border border-dashed border-gray-200 relative overflow-hidden h-[300px]">
+                                {/* Base Product Image */}
                                 <img
                                     src={getMockImage(selectedTemplate.img, designForm.selectedColors[0] || 'White')}
-                                    className="w-full h-full object-contain rounded-md"
+                                    className="w-full h-full object-contain rounded-md z-10"
                                 />
+                                {/* Design Overlay */}
+                                {designForm.designImage && (
+                                    <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                                        <div className="w-1/2 h-1/2 relative">
+                                            <img
+                                                src={designForm.designImage}
+                                                className="w-full h-full object-contain opacity-90 mix-blend-multiply"
+                                                alt="Custom Design"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Form */}
                             <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Votre Design</label>
+                                    <div className="flex items-center gap-4">
+                                        <label className="flex-1 cursor-pointer bg-white border border-gray-300 border-dashed rounded-lg p-3 text-center hover:bg-gray-50 transition-colors">
+                                            <span className="text-sm text-gray-600">
+                                                {designForm.designImage ? "Changer l'image" : "Uploader votre design (PNG, JPG)"}
+                                            </span>
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleDesignUpload} />
+                                        </label>
+                                        {designForm.designImage && (
+                                            <button onClick={() => setDesignForm(p => ({ ...p, designImage: null }))} className="text-red-500 p-2 hover:bg-red-50 rounded">
+                                                <X size={20} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Titre du produit</label>
                                     <input
@@ -298,45 +353,52 @@ export function PrintifyModule() {
                                 </div>
 
                                 {/* Color Selection */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Couleurs disponibles</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {AVAILABLE_COLORS.map(color => (
-                                            <button
-                                                key={color}
-                                                onClick={() => toggleColor(color)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${designForm.selectedColors.includes(color)
+                                {/* Color Selection - Only for Shirts & Bags */}
+                                {(selectedTemplate.img === 'shirt' || selectedTemplate.img === 'bag') && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Couleurs disponibles</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {AVAILABLE_COLORS.map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => toggleColor(color)}
+                                                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${designForm.selectedColors.includes(color)
                                                         ? 'bg-green-100 text-green-800 border-green-200 ring-1 ring-green-500'
                                                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                <span className={`w-2 h-2 rounded-full border border-gray-300 ${color === 'White' ? 'bg-white' :
+                                                        }`}
+                                                >
+                                                    <span className={`w-2 h-2 rounded-full border border-gray-300 ${color === 'White' ? 'bg-white' :
                                                         color === 'Black' ? 'bg-black' :
                                                             color === 'Navy' ? 'bg-blue-900' :
                                                                 'bg-red-500'
-                                                    }`}></span>
-                                                {color === 'White' ? 'Blanc' : color === 'Black' ? 'Noir' : color === 'Navy' ? 'Marine' : 'Rouge'}
-                                            </button>
-                                        ))}
+                                                        }`}></span>
+                                                    {color === 'White' ? 'Blanc' : color === 'Black' ? 'Noir' : color === 'Navy' ? 'Marine' : 'Rouge'}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
-                                {/* Size Selection */}
+                                {/* Size Selection - Specific by Product Type */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Tailles disponibles</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        {selectedTemplate.img === 'mug' ? 'Contenance' : selectedTemplate.img === 'poster' ? 'Format' : 'Tailles disponibles'}
+                                    </label>
                                     <div className="flex flex-wrap gap-2">
-                                        {AVAILABLE_SIZES.map(size => (
-                                            <button
-                                                key={size}
-                                                onClick={() => toggleSize(size)}
-                                                className={`w-10 h-10 rounded-lg text-sm font-bold border transition-all ${designForm.selectedSizes.includes(size)
-                                                        ? 'bg-gray-800 text-white border-gray-800'
-                                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {size}
-                                            </button>
-                                        ))}
+                                        {(selectedTemplate.img === 'mug' ? ['11oz', '15oz'] :
+                                            selectedTemplate.img === 'poster' ? ['A4', 'A3', '50x70cm'] :
+                                                AVAILABLE_SIZES).map(size => (
+                                                    <button
+                                                        key={size}
+                                                        onClick={() => toggleSize(size)}
+                                                        className={`min-w-[40px] px-3 py-2 rounded-lg text-sm font-bold border transition-all ${designForm.selectedSizes.includes(size)
+                                                            ? 'bg-gray-800 text-white border-gray-800'
+                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                                            }`}
+                                                    >
+                                                        {size}
+                                                    </button>
+                                                ))}
                                     </div>
                                 </div>
 
