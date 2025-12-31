@@ -11,7 +11,15 @@ export function PrintifyModule() {
     // Design Wizard State
     const [isDesignOpen, setIsDesignOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-    const [designForm, setDesignForm] = useState({ title: '', price: '', color: 'White' });
+    const [designForm, setDesignForm] = useState({
+        title: '',
+        price: '',
+        selectedColors: ['White'],
+        selectedSizes: ['M', 'L']
+    });
+
+    const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+    const AVAILABLE_COLORS = ['White', 'Black', 'Navy', 'Red'];
 
     useEffect(() => {
         if (activeTab === 'my-products') {
@@ -30,29 +38,77 @@ export function PrintifyModule() {
         setSelectedTemplate(item);
         setDesignForm({
             title: `Custom ${item.title}`,
-            price: (parseFloat(item.price.replace('$', '')) * 2).toFixed(2),
-            color: 'White'
+            price: (parseFloat(item.price.replace('$', '')) * 1.5).toFixed(2),
+            selectedColors: ['White'],
+            selectedSizes: ['S', 'M', 'L']
         });
         setIsDesignOpen(true);
     };
 
+    const toggleColor = (color: string) => {
+        setDesignForm(prev => {
+            const newColors = prev.selectedColors.includes(color)
+                ? prev.selectedColors.filter(c => c !== color)
+                : [...prev.selectedColors, color];
+            return { ...prev, selectedColors: newColors };
+        });
+    };
+
+    const toggleSize = (size: string) => {
+        setDesignForm(prev => {
+            const newSizes = prev.selectedSizes.includes(size)
+                ? prev.selectedSizes.filter(s => s !== size)
+                : [...prev.selectedSizes, size];
+            return { ...prev, selectedSizes: newSizes };
+        });
+    };
+
     const handlePublish = async () => {
         try {
+            if (designForm.selectedColors.length === 0 || designForm.selectedSizes.length === 0) {
+                alert("Veuillez sélectionner au moins une couleur et une taille.");
+                return;
+            }
+
+            // Generate Variants
+            const variants: any[] = [];
+            const images: any[] = [];
+
+            // Generate primary image for each color
+            designForm.selectedColors.forEach(color => {
+                const imgUrl = getMockImage(selectedTemplate.img, color);
+                images.push({ url: imgUrl, alt: `${designForm.title} - ${color}` });
+
+                designForm.selectedSizes.forEach(size => {
+                    variants.push({
+                        name: `${color} / ${size}`,
+                        price: designForm.price,
+                        selling_price: designForm.price,
+                        image: imgUrl,
+                        sku: `POD-${selectedTemplate.img}-${color.toUpperCase()}-${size}`
+                    });
+                });
+            });
+
             const { error } = await supabase.from('products').insert([{
                 title: designForm.title,
                 price: parseFloat(designForm.price),
-                image: getMockImage(selectedTemplate.img, designForm.color),
-                category: 'Vêtements', // Default logic could be smarter
-                description: `Produit personnalisé sur mesure. Base: ${selectedTemplate.title}. Couleur: ${designForm.color}.`,
+                image: images[0].url,
+                image_alt: images[0].alt,
+                images: images,
+                variants: variants,
+                category: 'Vêtements',
+                description: `Produit imprimé à la demande. Qualité premium.\nModèle: ${selectedTemplate.title}.\nCouleurs disponibles: ${designForm.selectedColors.join(', ')}.\nTailles: ${designForm.selectedSizes.join(', ')}.`,
                 source: 'printify',
-                stock: 999, // POD implies infinite stock
-                is_new: true
+                stock: 999,
+                is_new: true,
+                aspect_ratio: 'portrait'
             }]);
 
             if (error) throw error;
 
             setIsDesignOpen(false);
-            alert("Produit créé et publié avec succès !");
+            alert("Produit publié avec succès ! Retrouvez-le dans 'Mes Produits' et sur la boutique.");
             setActiveTab('my-products');
 
         } catch (error: any) {
@@ -61,14 +117,17 @@ export function PrintifyModule() {
     };
 
     const getMockImage = (type: string, color: string) => {
-        // Simple mock logic for dynamic images
         if (type === 'shirt') return color === 'Black'
-            ? 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop' // Black Shirt
-            : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'; // White Shirt
+            ? 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop'
+            : color === 'Navy'
+                ? 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400&h=400&fit=crop'
+                : color === 'Red'
+                    ? 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=400&fit=crop'
+                    : 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop'; // White
 
         if (type === 'mug') return 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=400&h=400&fit=crop';
         if (type === 'bag') return 'https://images.unsplash.com/photo-1597484661643-2f5fef640dd1?w=400&h=400&fit=crop';
-        return 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=400&h=400&fit=crop'; // Poster
+        return 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=400&h=400&fit=crop';
     };
 
     return (
@@ -221,7 +280,10 @@ export function PrintifyModule() {
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
                             {/* Preview */}
                             <div className="bg-gray-50 rounded-lg flex items-center justify-center p-4 border border-dashed border-gray-200">
-                                <img src={getMockImage(selectedTemplate.img, designForm.color)} className="w-full h-full object-contain rounded-md" />
+                                <img
+                                    src={getMockImage(selectedTemplate.img, designForm.selectedColors[0] || 'White')}
+                                    className="w-full h-full object-contain rounded-md"
+                                />
                             </div>
 
                             {/* Form */}
@@ -234,18 +296,50 @@ export function PrintifyModule() {
                                         className="w-full p-2 border rounded-lg"
                                     />
                                 </div>
+
+                                {/* Color Selection */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Couleur</label>
-                                    <select
-                                        value={designForm.color}
-                                        onChange={(e) => setDesignForm({ ...designForm, color: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-white"
-                                    >
-                                        <option value="White">Blanc</option>
-                                        <option value="Black">Noir</option>
-                                        <option value="Navy">Bleu Marine</option>
-                                    </select>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Couleurs disponibles</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {AVAILABLE_COLORS.map(color => (
+                                            <button
+                                                key={color}
+                                                onClick={() => toggleColor(color)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${designForm.selectedColors.includes(color)
+                                                        ? 'bg-green-100 text-green-800 border-green-200 ring-1 ring-green-500'
+                                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                <span className={`w-2 h-2 rounded-full border border-gray-300 ${color === 'White' ? 'bg-white' :
+                                                        color === 'Black' ? 'bg-black' :
+                                                            color === 'Navy' ? 'bg-blue-900' :
+                                                                'bg-red-500'
+                                                    }`}></span>
+                                                {color === 'White' ? 'Blanc' : color === 'Black' ? 'Noir' : color === 'Navy' ? 'Marine' : 'Rouge'}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
+
+                                {/* Size Selection */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Tailles disponibles</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {AVAILABLE_SIZES.map(size => (
+                                            <button
+                                                key={size}
+                                                onClick={() => toggleSize(size)}
+                                                className={`w-10 h-10 rounded-lg text-sm font-bold border transition-all ${designForm.selectedSizes.includes(size)
+                                                        ? 'bg-gray-800 text-white border-gray-800'
+                                                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                {size}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente (€)</label>
                                     <input
