@@ -82,16 +82,19 @@ export function Hero() {
         }
     };
 
+    const HEADER_HEIGHT_MOBILE = "h-[350px]";
+    const HEADER_HEIGHT_DESKTOP = "md:h-[450px]";
+
     if (isLoading) {
         return (
-            <div className="w-full h-[500px] md:h-[700px] bg-gray-100 animate-pulse mb-8 md:mb-12 flex items-center justify-center">
+            <div className={`w-full ${HEADER_HEIGHT_MOBILE} ${HEADER_HEIGHT_DESKTOP} bg-gray-100 animate-pulse mb-8 md:mb-12 flex items-center justify-center`}>
                 <div className="text-gray-300 font-cursive text-4xl">Chargement...</div>
             </div>
         );
     }
 
     return (
-        <div className="relative w-full h-[500px] md:h-[700px] bg-pastel-yellow bg-opacity-20 mb-8 md:mb-12 overflow-hidden transition-all duration-500">
+        <div className={`relative w-full ${HEADER_HEIGHT_MOBILE} ${HEADER_HEIGHT_DESKTOP} bg-pastel-yellow bg-opacity-20 mb-8 md:mb-12 overflow-hidden transition-all duration-500`}>
             {/* Background Image */}
             <img
                 key={content.imageUrl} // Force reload on change
@@ -103,15 +106,15 @@ export function Hero() {
 
             {/* Content Overlay */}
             {content.showOverlay && (
-                <div className={`absolute inset-0 bg-white/30 flex items-center ${content.overlayPosition === 'left' ? 'justify-start md:pl-20' : content.overlayPosition === 'center' ? 'justify-center' : 'justify-end md:pr-20'}`}>
-                    <div className="bg-white p-6 md:p-8 max-w-sm shadow-xl list-none rounded-3xl border-4 border-pastel-pink transform rotate-1 transition-all hover:rotate-0 mx-4 animate-in slide-in-from-bottom-5 duration-700">
-                        <h2 className="text-3xl md:text-5xl font-bold text-primary mb-3 tracking-tight font-cursive">
+                <div className={`absolute inset-0 bg-white/30 flex items-center ${content.overlayPosition === 'left' ? 'justify-start md:pl-16' : content.overlayPosition === 'center' ? 'justify-center' : 'justify-end md:pr-16'}`}>
+                    <div className="bg-white p-4 max-w-[280px] md:max-w-xs shadow-xl list-none rounded-xl border-2 border-pastel-pink transform rotate-1 transition-all hover:rotate-0 mx-4 animate-in slide-in-from-bottom-5 duration-700">
+                        <h2 className="text-xl md:text-2xl font-bold text-primary mb-2 tracking-tight font-cursive">
                             {content.title}
                         </h2>
-                        <p className="text-gray-600 mb-6 text-base md:text-lg font-medium leading-relaxed">
+                        <p className="text-gray-600 mb-3 text-xs md:text-sm font-medium leading-relaxed">
                             {content.subtitle}
                         </p>
-                        <Link to={content.buttonLink} className="bg-secondary text-white px-8 py-3 font-bold text-base md:text-lg rounded-full hover:scale-105 transition-transform shadow-lg border-2 border-white inline-block">
+                        <Link to={content.buttonLink} className="bg-secondary text-white px-5 py-1.5 font-bold text-xs md:text-sm rounded-full hover:scale-105 transition-transform shadow-md border border-white inline-block">
                             {content.buttonText}
                         </Link>
                     </div>
