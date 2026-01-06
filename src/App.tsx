@@ -56,6 +56,7 @@ function App() {
                 } />
                 <Route path="/product/:id" element={<ProductPage />} />
                 <Route path="/category/:categorySlug" element={<CategoryPage />} />
+                <Route path="/category/:categorySlug/:subcategorySlug" element={<CategoryPage />} />
                 {/* Fallback for root level category paths (e.g. /jouets instead of /category/jouets) */}
                 <Route path="/:categorySlug" element={<CategoryPage />} />
               </Route>
