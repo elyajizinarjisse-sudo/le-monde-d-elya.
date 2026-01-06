@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Printer, Search, ShoppingBag, Palette, ExternalLink, PenTool, X, Check } from 'lucide-react';
+import { Printer, Search, ShoppingBag, Palette, ExternalLink, PenTool, X, Check, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatPrice } from '../../lib/currency';
 
@@ -14,16 +14,26 @@ export function PrintifyModule() {
     const [designForm, setDesignForm] = useState<{
         title: string;
         price: string;
+        category: string;
+        subcategory: string;
         selectedColors: string[];
         selectedSizes: string[];
         designImage: string | null;
+        coverImage: File | null;
+        coverImagePreview: string | null;
     }>({
         title: '',
         price: '',
+        category: '',
+        subcategory: '',
         selectedColors: ['White'],
         selectedSizes: ['M', 'L'],
-        designImage: null
+        designImage: null,
+        coverImage: null,
+        coverImagePreview: null
     });
+
+    const [categories, setCategories] = useState<any[]>([]);
 
     const handleDesignUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -40,6 +50,7 @@ export function PrintifyModule() {
         if (activeTab === 'my-products') {
             fetchMyProducts();
         }
+        fetchCategories();
     }, [activeTab]);
 
     const fetchMyProducts = async () => {
@@ -47,6 +58,63 @@ export function PrintifyModule() {
         const { data } = await supabase.from('products').select('*').eq('source', 'printify').order('created_at', { ascending: false });
         if (data) setMyProducts(data);
         setLoading(false);
+    };
+
+    const fetchCategories = async () => {
+        const { data, error } = await supabase.from('menu_items').select('*').order('display_order');
+        if (error) {
+            console.error('Error fetching categories:', error);
+            return;
+        }
+
+        if (data) {
+            // Transform menu_items into the structure expected by the dropdown
+            // 1. Identify "Main" categories (those without parent_id)
+            const parents = data.filter((item: any) => !item.parent_id);
+
+            // 2. Identify "Children" (all items with a parent_id)
+            const children = data.filter((item: any) => item.parent_id);
+
+            const processedCats = parents.map((parent: any) => {
+                // Level 2 (Direct children of Parent)
+                const level2 = children.filter((child: any) => child.parent_id == parent.id);
+
+                let allSubs: any[] = [];
+
+                level2.forEach((l2: any) => {
+                    // Add Level 2 item
+                    allSubs.push({
+                        label: l2.label,
+                        display: l2.label
+                    });
+
+                    // Level 3 (Grandchildren - children of Level 2)
+                    const level3 = children.filter((child: any) => child.parent_id == l2.id);
+                    level3.forEach((l3: any) => {
+                        allSubs.push({
+                            label: l3.label,
+                            display: `${l2.label} > ${l3.label}`
+                        });
+                    });
+                });
+
+                return {
+                    label: parent.label,
+                    subcategories: allSubs
+                };
+            });
+
+            // Fallback
+            if (processedCats.length === 0 && data.length > 0) {
+                const flatCats = data.map((item: any) => ({
+                    label: item.label,
+                    subcategories: []
+                }));
+                setCategories(flatCats);
+            } else {
+                setCategories(processedCats);
+            }
+        }
     };
 
     const handleStartDesign = (item: any) => {
@@ -61,9 +129,13 @@ export function PrintifyModule() {
         setDesignForm({
             title: `Custom ${item.title}`,
             price: (parseFloat(item.price.replace('$', '')) * 1.5).toFixed(2),
+            category: '',
+            subcategory: '',
             selectedColors: defaultColors,
             selectedSizes: defaultSizes,
-            designImage: null
+            designImage: null,
+            coverImage: null,
+            coverImagePreview: null
         });
         setIsDesignOpen(true);
     };
@@ -95,7 +167,23 @@ export function PrintifyModule() {
 
             // Generate Variants
             const variants: any[] = [];
-            const images: any[] = [];
+            let images: any[] = [];
+
+            // 0. Upload Cover Image if present
+            let coverImageUrl = '';
+            if (designForm.coverImage) {
+                const fileExt = designForm.coverImage.name.split('.').pop();
+                const fileName = `printify-cover-${Math.random()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('product-images')
+                    .upload(fileName, designForm.coverImage);
+
+                if (!uploadError) {
+                    const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+                    coverImageUrl = data.publicUrl;
+                    images.push({ url: coverImageUrl, alt: 'Cover Image' });
+                }
+            }
 
             // Generate primary image for each color
             designForm.selectedColors.forEach(color => {
@@ -120,7 +208,10 @@ export function PrintifyModule() {
                 image_alt: images[0].alt,
                 images: images,
                 variants: variants,
-                category: 'Vêtements',
+                images: images,
+                variants: variants,
+                category: designForm.category || 'Vêtements',
+                subcategory: designForm.subcategory,
                 description: `Produit imprimé à la demande. Qualité premium.\nModèle: ${selectedTemplate.title}.\nCouleurs disponibles: ${designForm.selectedColors.join(', ')}.\nTailles: ${designForm.selectedSizes.join(', ')}.`,
                 source: 'printify',
                 stock: 999,
@@ -410,6 +501,72 @@ export function PrintifyModule() {
                                         onChange={(e) => setDesignForm({ ...designForm, price: e.target.value })}
                                         className="w-full p-2 border rounded-lg font-bold"
                                     />
+                                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                                        <h4 className="text-sm font-bold text-gray-800">Catégorisation</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-medium text-gray-600">Catégorie</label>
+                                                <select
+                                                    value={designForm.category}
+                                                    onChange={e => setDesignForm({ ...designForm, category: e.target.value, subcategory: '' })}
+                                                    className="w-full p-2 border rounded-lg text-sm"
+                                                >
+                                                    <option value="">Choisir...</option>
+                                                    {categories.map(cat => (
+                                                        <option key={cat.label} value={cat.label}>{cat.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-medium text-gray-600">Sous-catégorie</label>
+                                                <select
+                                                    value={designForm.subcategory}
+                                                    onChange={e => setDesignForm({ ...designForm, subcategory: e.target.value })}
+                                                    className="w-full p-2 border rounded-lg text-sm"
+                                                    disabled={!designForm.category}
+                                                >
+                                                    <option value="">Choisir...</option>
+                                                    {designForm.category && categories.find(c => c.label === designForm.category)?.subcategories.map((sub: any) => (
+                                                        <option key={sub.display} value={sub.label}>{sub.display}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Image de Couverture (Optionnel)</label>
+                                    <p className="text-xs text-gray-500 mb-2">Remplace le mockup par une photo réelle si disponible.</p>
+
+                                    {!designForm.coverImagePreview ? (
+                                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors relative">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const url = URL.createObjectURL(file);
+                                                        setDesignForm(prev => ({ ...prev, coverImage: file, coverImagePreview: url }));
+                                                    }
+                                                }}
+                                            />
+                                            <Upload className="mx-auto text-gray-400 mb-2" size={24} />
+                                            <span className="text-sm text-gray-500">Cliquez pour ajouter une photo</span>
+                                        </div>
+                                    ) : (
+                                        <div className="relative rounded-lg overflow-hidden border border-gray-200 group">
+                                            <img src={designForm.coverImagePreview} alt="Cover" className="w-full h-32 object-cover" />
+                                            <button
+                                                onClick={() => setDesignForm(prev => ({ ...prev, coverImage: null, coverImagePreview: null }))}
+                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-4">

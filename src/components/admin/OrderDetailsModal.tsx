@@ -17,6 +17,7 @@ interface OrderItem {
     title: string;
     quantity: number;
     price_at_purchase: number;
+    customizations?: Record<string, string>;
 }
 
 interface OrderDetailsModalProps {
@@ -175,10 +176,28 @@ export function OrderDetailsModal({ order, onClose, onStatusUpdate }: OrderDetai
                                     <tbody className="divide-y divide-gray-100">
                                         {items.map(item => (
                                             <tr key={item.id} className="hover:bg-gray-50/50">
-                                                <td className="p-3 font-medium text-gray-900">{item.title}</td>
-                                                <td className="p-3 text-center text-gray-600">{item.quantity}</td>
-                                                <td className="p-3 text-right text-gray-600">{item.price_at_purchase.toFixed(2)} $</td>
-                                                <td className="p-3 text-right font-medium text-gray-900">
+                                                <td className="p-3">
+                                                    <div className="font-medium text-gray-900">{item.title}</div>
+                                                    {/* Display Customizations if any */}
+                                                    {item.customizations && Object.keys(item.customizations).length > 0 && (
+                                                        <div className="mt-1 text-xs space-y-1">
+                                                            {Object.entries(item.customizations).map(([key, value]) => (
+                                                                <div key={key} className="flex gap-1 text-gray-600 bg-blue-50 px-2 py-1 rounded w-fit">
+                                                                    <span className="font-bold">{key}:</span>
+                                                                    <span className="truncate max-w-[200px]" title={String(value)}>{String(value)}</span>
+                                                                    {String(value).startsWith('http') && (
+                                                                        <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1 font-bold">
+                                                                            (Voir fichier)
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-center text-gray-600 align-top">{item.quantity}</td>
+                                                <td className="p-3 text-right text-gray-600 align-top">{item.price_at_purchase.toFixed(2)} $</td>
+                                                <td className="p-3 text-right font-medium text-gray-900 align-top">
                                                     {(item.price_at_purchase * item.quantity).toFixed(2)} $
                                                 </td>
                                             </tr>

@@ -9,11 +9,13 @@ export interface CartItem extends Product {
         price?: string;
         image?: string;
     };
+    customizations?: Record<string, string>;
+    digital_files?: any[]; // For digital downloads
 }
 
 interface CartContextType {
     items: CartItem[];
-    addToCart: (product: Product & { variant?: any }) => void;
+    addToCart: (product: Product & { variant?: any; customizations?: Record<string, string> }) => void;
     removeFromCart: (cartItemId: string) => void;
     updateQuantity: (cartItemId: string, quantity: number) => void;
     clearCart: () => void;
@@ -41,11 +43,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('cart', JSON.stringify(items));
     }, [items]);
 
-    const addToCart = (product: Product & { variant?: any }) => {
+    const addToCart = (product: Product & { variant?: any; customizations?: Record<string, string> }) => {
         setItems(prev => {
             // Create a unique key for this combination
             const variantKey = product.variant ? product.variant.name : 'base';
-            const existing = prev.find(item => item.id === product.id && (item.variant?.name || 'base') === variantKey);
+            const customizationKey = product.customizations ? JSON.stringify(product.customizations) : '{}';
+
+            const existing = prev.find(item =>
+                item.id === product.id &&
+                (item.variant?.name || 'base') === variantKey &&
+                (JSON.stringify(item.customizations || {}) === customizationKey)
+            );
 
             if (existing) {
                 return prev.map(item =>
@@ -58,7 +66,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 ...product,
                 quantity: 1,
                 cartItemId: `${product.id}-${variantKey}-${Date.now()}`,
-                variant: product.variant
+                variant: product.variant,
+                customizations: product.customizations
             }];
         });
         setIsCartOpen(true);

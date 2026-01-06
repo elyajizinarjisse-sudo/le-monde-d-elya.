@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export interface BlogPost {
@@ -9,6 +9,7 @@ export interface BlogPost {
     image_alt?: string;
     date: string;
     readTime: string;
+    slug?: string;
 }
 
 interface BlogSectionProps {
@@ -17,51 +18,44 @@ interface BlogSectionProps {
 
 export function BlogSection({ posts }: BlogSectionProps) {
     return (
-        <section className="py-8">
-            <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 font-cursive relative inline-block">
-                    Le Journal d'Elya ✍️
-                    <span className="absolute bottom-0 left-0 w-full h-2 bg-pastel-yellow opacity-40 -rotate-1 rounded-full"></span>
-                </h2>
-                <Link to="/category/livres" className="hidden md:flex items-center gap-2 text-primary font-bold hover:text-secondary transition-colors group">
-                    Voir tous les articles
-                    <ArrowRight size={20} className="transform group-hover:translate-x-1 transition-transform" />
-                </Link>
-            </div>
+        <section className="py-16 bg-white">
+            <div className="container mx-auto px-4">
+                <div className="flex items-center justify-between mb-10">
+                    <h2 className="text-3xl font-bold text-gray-800 font-cursive flex items-center gap-3">
+                        Le Journal d'Elya <span className="text-2xl">✍️</span>
+                    </h2>
+                    <Link to="/blog" className="text-sm font-bold text-primary flex items-center hover:text-secondary transition-colors group">
+                        Voir tous les articles <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {posts.map((post) => (
-                    <Link to={`/blog/${post.id}`} key={post.id} className="group cursor-pointer block">
-                        <article>
-                            <div className="relative overflow-hidden rounded-2xl mb-4 aspect-[4/3] shadow-md">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {posts.map((post) => (
+                        <Link to={`/blog/${post.slug}`} key={post.id} className="group cursor-pointer">
+                            <div className="mb-4 overflow-hidden rounded-2xl shadow-sm aspect-[4/3]">
                                 <img
                                     src={post.image}
-                                    alt={post.image_alt || post.title}
+                                    alt={post.title}
                                     className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                                 />
-                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-primary">
+                            </div>
+                            <div className="space-y-2">
+                                <span className="text-[10px] font-bold tracking-wider text-secondary uppercase bg-secondary/10 px-2 py-1 rounded-full">
                                     {post.date}
+                                </span>
+                                <h3 className="font-bold text-lg text-gray-800 group-hover:text-primary transition-colors leading-tight">
+                                    {post.title}
+                                </h3>
+                                <p className="text-gray-500 text-sm line-clamp-2">
+                                    {post.excerpt}
+                                </p>
+                                <div className="pt-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
+                                    Lecture : {post.readTime}
                                 </div>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                                {post.title}
-                            </h3>
-                            <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
-                                {post.excerpt}
-                            </p>
-                            <div className="flex items-center text-xs font-bold text-secondary uppercase tracking-wider">
-                                Lecture : {post.readTime}
-                            </div>
-                        </article>
-                    </Link>
-                ))}
-            </div>
-
-            <div className="mt-8 md:hidden text-center">
-                <Link to="/category/livres" className="inline-flex items-center gap-2 text-primary font-bold hover:text-secondary transition-colors">
-                    Voir tous les articles
-                    <ArrowRight size={20} />
-                </Link>
+                        </Link>
+                    ))}
+                </div>
             </div>
         </section>
     );

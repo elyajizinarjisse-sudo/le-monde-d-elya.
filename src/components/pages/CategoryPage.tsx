@@ -4,10 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import { ArrowLeft } from 'lucide-react';
 import { ProductCard } from '../home/ProductCard';
 import { supabase } from '../../lib/supabase';
-// Keep mock data only as fallback or type reference if needed, but we rely on DB now
-import { BOOKS, TOYS, ORGANIZERS, DECOR, PARTY, CREATIVE, DIGITAL_PRODUCTS } from '../../data/mockData';
-
-const ALL_PRODUCTS_MOCK = [...BOOKS, ...TOYS, ...DECOR, ...ORGANIZERS, ...PARTY, ...CREATIVE, ...DIGITAL_PRODUCTS];
 
 export function CategoryPage() {
     const { categorySlug, subcategorySlug } = useParams();
@@ -23,76 +19,77 @@ export function CategoryPage() {
         const fetchProducts = async () => {
             setIsLoading(true);
             try {
-                // 1. Try fetching from Supabase
-                // Build query based on category/subcategory
-                let query = supabase.from('products').select('*');
+                // Determine Category Label dynamically
+                let categoryLabel = '';
 
+                // 1. Try to find category in menu_items matching the slug
+                // We assume path in menu_items might be "/categorySlug" or just "categorySlug" or "/category/categorySlug"
+                // Let's interpret the slug.
                 if (categorySlug && categorySlug !== 'soldes') {
-                    // Map slug to Category Name (simple mapping)
-                    // Note: In a real app, we might have a Categories table.
-                    // Here we try to match what we put in Admin ("Livres", "Jouets", etc.)
-                    // This is a bit loose but works for this scale.
-                    const categoryMap: Record<string, string> = {
-                        'livres': 'Livres',
-                        'jouets': 'Jouets',
-                        'organisateurs': 'Organisateurs',
-                        'deco': 'Décoration',
-                        'creatif': 'Loisirs Créatifs',
-                        'fete': 'Fêtes & Anniversaires',
-                        'impressions': 'Numérique'
-                    };
-                    const dbCategory = categoryMap[categorySlug];
-                    if (dbCategory) {
-                        query = query.eq('category', dbCategory);
+                    try {
+                        const { data: menuData } = await supabase
+                            .from('menu_items')
+                            .select('label, path')
+                            .ilike('path', `%${categorySlug}%`)
+                            .limit(1);
+
+                        if (menuData && menuData.length > 0) {
+                            categoryLabel = menuData[0].label;
+                        } else {
+                            categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
+                            if (categorySlug.toLowerCase() === 'ebook') categoryLabel = 'E-book';
+                        }
+                    } catch (err) {
+                        console.error("Menu fetch error:", err);
+                        categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
                     }
                 }
 
-                // If subcategory is present, filter by it (this requires the subcategory text to match closely or use normalized search)
-                // For now, let's fetch everything in the category and filter clientside if needed for stricter matching, 
-                // or just rely on the category filter for now to show *something*.
+                // 2. Fetch Products
+                let query = supabase.from('products').select('*');
+
+                if (categorySlug === 'soldes') {
+                    // query = query.eq('is_sale', true); 
+                } else if (categoryLabel) {
+                    // Try exact match on category label first, otherwise loose match
+                    // We modify the query to filter results in memory if needed, or use .or()
+                    // But supabase .or() across columns is tricky with other filters.
+                    // For now, let's stick to the label we found.
+                    query = query.eq('category', categoryLabel);
+                }
 
                 const { data } = await query;
 
                 if (data && data.length > 0) {
                     let filtered = data;
                     if (targetSlug) {
-                        const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-');
+                        const normalize = (str: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-') : '';
                         filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(targetSlug!));
                     }
                     setProducts(filtered);
                 } else {
-                    // Fallback to mock data if DB is empty or fails (so site doesn't look broken during transition)
-                    console.log("No DB data found, using mock fallback");
-                    fallbackToMock();
+                    // Try loose match if exact label failed (e.g. user typed "Broderie" but DB has "broderie")
+                    if (categorySlug && !categoryLabel) {
+                        const { data: allProducts } = await supabase.from('products').select('*');
+                        if (allProducts) {
+                            const filtered = allProducts.filter(p =>
+                                p.category && p.category.toLowerCase().includes(categorySlug!.toLowerCase())
+                            );
+                            setProducts(filtered);
+                        } else {
+                            setProducts([]);
+                        }
+                    } else {
+                        setProducts([]);
+                    }
                 }
 
             } catch (err) {
                 console.error(err);
-                fallbackToMock();
+                setProducts([]);
             } finally {
                 setIsLoading(false);
             }
-        };
-
-        const fallbackToMock = () => {
-            // ... duplicate logic from before but with state ...
-            // For simplicity, let's just use the previous logic:
-            let filtered = ALL_PRODUCTS_MOCK;
-            // Re-implement the static logic efficiently:
-            if (categorySlug === 'livres') filtered = BOOKS;
-            else if (categorySlug === 'jouets') filtered = TOYS;
-            else if (categorySlug === 'organisateurs') filtered = ORGANIZERS;
-            else if (categorySlug === 'deco') filtered = DECOR;
-            else if (categorySlug === 'creatif') filtered = CREATIVE;
-            else if (categorySlug === 'fete') filtered = PARTY;
-            else if (categorySlug === 'impressions') filtered = DIGITAL_PRODUCTS;
-            else if (categorySlug === 'soldes') filtered = ALL_PRODUCTS_MOCK.filter(p => p.isSale);
-
-            if (targetSlug) {
-                const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-');
-                filtered = filtered.filter(p => p.subcategory && normalize(p.subcategory) === targetSlug);
-            }
-            setProducts(filtered);
         };
 
         fetchProducts();

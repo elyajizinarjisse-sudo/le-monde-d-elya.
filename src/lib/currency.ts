@@ -6,8 +6,9 @@
  * @returns The formatted currency string.
  */
 export const formatPrice = (amount: number, currency: string = 'CAD', locale: string = 'fr-CA'): string => {
+    const safeAmount = (typeof amount === 'number' && !isNaN(amount)) ? amount : 0;
     return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: currency,
-    }).format(amount);
+    }).format(safeAmount);
 };

@@ -23,81 +23,90 @@ export function ProductManager() {
         image_alt: '', // Legacy support
         description: '',
         aspect_ratio: 'portrait', // 'portrait' | 'square' | 'landscape'
-        variants: [] as { name: string; price: string; selling_price?: string; image: string }[]
+        variants: [] as { name: string; price: string; selling_price?: string; image: string }[],
+        customization_options: [] as { id: string; type: 'text' | 'select' | 'file'; label: string; required: boolean; options?: string[] }[],
+        digital_files: [] as { name: string; url: string; type: string }[]
     });
 
     // Fetch products and categories
+    const fetchProducts = async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        if (error) console.error('Error fetching products:', error);
+        else setProducts(data || []);
+        setIsLoading(false);
+    };
+
+    const [debugError, setDebugError] = useState<string>('');
+
+    const fetchCategories = async () => {
+        const { data, error } = await supabase.from('menu_items').select('*').order('display_order');
+        if (error) {
+            console.error('Error fetching categories:', error);
+            setDebugError(error.message);
+            return;
+        }
+
+        if (data) {
+            // Transform menu_items into the structure expected by the dropdown
+            // Structure: { label: string, subcategories: { label: string, display: string }[] }
+
+            // 1. Identify "Main" categories (those without parent_id)
+            const parents = data.filter((item: any) => !item.parent_id);
+
+            // 2. Identify "Children" (all items with a parent_id)
+            const children = data.filter((item: any) => item.parent_id);
+
+            const processedCats = parents.map((parent: any) => {
+                // Level 2 (Direct children of Parent)
+                const level2 = children.filter((child: any) => child.parent_id == parent.id);
+
+                let allSubs: any[] = [];
+
+                level2.forEach((l2: any) => {
+                    // Add Level 2 item itself as an option
+                    allSubs.push({
+                        label: l2.label,
+                        display: l2.label
+                    });
+
+                    // Level 3 (Grandchildren - children of Level 2)
+                    const level3 = children.filter((child: any) => child.parent_id === l2.id);
+                    // Debug text
+
+                    level3.forEach((l3: any) => {
+                        allSubs.push({
+                            label: l3.label, // The value stored in DB (e.g. "Tasse")
+                            display: `${l2.label} > ${l3.label}` // The label shown in dropdown (e.g. "Sérigraphie > Tasse")
+                        });
+                    });
+                });
+
+                return {
+                    label: parent.label,
+                    subcategories: allSubs
+                };
+            });
+
+            // 3. Fallback for potential flat lists or data issues
+            if (processedCats.length === 0 && data.length > 0) {
+                const flatCats = data.map((item: any) => ({
+                    label: item.label,
+                    subcategories: []
+                }));
+                setCategories(flatCats);
+            } else {
+                setCategories(processedCats);
+            }
+        }
+    };
+
     useEffect(() => {
         fetchProducts();
         fetchCategories();
     }, []);
 
-    const fetchCategories = async () => {
-        try {
-            const { data } = await supabase.from('menu_items').select('*').order('display_order', { ascending: true });
-            if (data) {
-                const lookup: any = {};
-                const rootItems: any[] = [];
-                data.forEach(item => lookup[item.id] = { ...item, children: [] });
-                data.forEach(item => {
-                    if (item.parent_id && lookup[item.parent_id]) {
-                        lookup[item.parent_id].children.push(lookup[item.id]);
-                    } else {
-                        rootItems.push(lookup[item.id]);
-                    }
-                });
-
-                // Transform for ProductManager: simple structure with root label and flat list of sub-links
-                // A "link" is a leaf node in this context.
-                const formatted = rootItems.map(root => ({
-                    label: root.label,
-                    subItems: root.children?.flatMap((sec: any) =>
-                        sec.children?.map((link: any) => ({
-                            label: link.label,
-                            display: `${sec.label} > ${link.label}`
-                        })) || []
-                    ) || []
-                }));
-
-                setCategories(formatted);
-
-                // Set default if empty and not set
-                if (formatted.length > 0) {
-                    setNewProduct(prev => {
-                        if (!prev.category) {
-                            return { ...prev, category: formatted[0].label };
-                        }
-                        return prev;
-                    });
-                }
-            }
-        } catch (e) { console.error('Error fetching categories:', e); }
-    };
-
-    const fetchProducts = async () => {
-        try {
-            setIsLoading(true);
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (!error && data) {
-                setProducts(data as any[]);
-            } else if (error) {
-                console.error('Supabase Error:', error);
-            }
-        } catch (err) {
-            console.error('Fetch crashed:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Subcategory logic based on DYNAMIC categories
-    const activeCategory = categories.find(n => n.label === newProduct.category);
-    // flattened subitems array is stored in subItems prop of formatted category
-    const availableSubcategories = activeCategory ? activeCategory.subItems : [];
+    // ... (rest of code)
 
     const handleSaveProduct = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,6 +129,8 @@ export function ProductManager() {
             subcategory: newProduct.subcategory,
             aspect_ratio: newProduct.aspect_ratio,
             variants: newProduct.variants, // Save detailed variants
+            customization_options: newProduct.customization_options, // Save customization options
+            digital_files: newProduct.digital_files, // Save digital files
             stock: 10,
             is_new: true
         };
@@ -143,12 +154,13 @@ export function ProductManager() {
 
             if (error) {
                 console.error(error);
-                if (error.message.includes('schema cache')) {
-                    alert("⚠️ Erreur de synchronisation Base de Données\n\nLa colonne 'images' est introuvable par Supabase.\n\nVeuillez exécuter ce SQL dans votre dashboard Supabase :\n\nNOTIFY pgrst, 'reload config';");
-                } else if (error.message.includes('images')) {
-                    alert("⚠️ Colonne manquante\n\nVotre table 'products' n'a pas la colonne 'images'.\nVeuillez exécuter le script de migration SQL fourni.");
+                if (error.message.includes('digital_files')) {
+                    alert("⚠️ Colonne manquante : digital_files\n\nVotre base de données n'est pas à jour pour les E-books.\n\nExécutez ce SQL :\nALTER TABLE public.products ADD COLUMN IF NOT EXISTS digital_files JSONB DEFAULT '[]'::jsonb;\nNOTIFY pgrst, 'reload config';");
+                } else if (error.message.includes('schema cache')) {
+                    alert("⚠️ Erreur de Cache\n\nSupabase ne voit pas vos nouvelles colonnes.\nExécutez : NOTIFY pgrst, 'reload config';");
                 } else {
-                    alert("Erreur lors de l'enregistrement : " + error.message);
+                    // Fallback to raw error if unknown
+                    alert(`Erreur : ${error.message}`);
                 }
                 return;
             }
@@ -182,7 +194,9 @@ export function ProductManager() {
             image_alt: product.image_alt,
             description: product.description || '',
             aspect_ratio: product.aspect_ratio || 'portrait',
-            variants: product.variants || []
+            variants: product.variants || [],
+            customization_options: product.customization_options || [],
+            digital_files: product.digital_files || []
         });
         setEditingId(product.id);
         setIsFormOpen(true);
@@ -202,7 +216,9 @@ export function ProductManager() {
             image_alt: '',
             description: '',
             aspect_ratio: 'portrait',
-            variants: []
+            variants: [],
+            customization_options: [],
+            digital_files: []
         });
     };
 
@@ -245,6 +261,10 @@ export function ProductManager() {
             setUploading(false);
         }
     };
+
+    const availableSubcategories = newProduct.category
+        ? categories.find(c => c.label === newProduct.category)?.subcategories || []
+        : [];
 
     return (
         <div className="space-y-8">
@@ -313,17 +333,20 @@ export function ProductManager() {
                         {/* Dynamic Category Selection */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Catégorie</label>
-                            <select
-                                value={newProduct.category}
-                                onChange={e => {
-                                    setNewProduct({ ...newProduct, category: e.target.value, subcategory: '' });
-                                }}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
-                            >
-                                {categories.map(item => (
-                                    <option key={item.label} value={item.label}>{item.label}</option>
-                                ))}
-                            </select>
+                            <div className="flex flex-col gap-1">
+                                <select
+                                    value={newProduct.category}
+                                    onChange={e => {
+                                        setNewProduct({ ...newProduct, category: e.target.value, subcategory: '' });
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                                >
+                                    <option value="">Choisir...</option>
+                                    {categories.map(item => (
+                                        <option key={item.label} value={item.label}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         {/* Dynamic Subcategory Selection */}
@@ -514,6 +537,115 @@ export function ProductManager() {
                                 </button>
                             </div>
 
+                            {/* Customization Options Section */}
+                            <div className="pt-2 border-t border-gray-200 mt-4">
+                                <label className="text-sm font-bold text-gray-700 block mb-3">Options de Personnalisation (Client)</label>
+                                <p className="text-xs text-gray-500 mb-3">Ajoutez des champs que le client devra remplir (ex: Prénom, Choix de couleur).</p>
+
+                                {newProduct.customization_options && newProduct.customization_options.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {newProduct.customization_options.map((option, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-3 border border-gray-200 rounded-lg space-y-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1 grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-500">Label (Question)</label>
+                                                            <input
+                                                                type="text"
+                                                                value={option.label}
+                                                                onChange={(e) => {
+                                                                    const newOpts = [...newProduct.customization_options];
+                                                                    newOpts[idx].label = e.target.value;
+                                                                    setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                                }}
+                                                                className="w-full p-1.5 border rounded text-sm"
+                                                                placeholder="Ex: Prénom du bébé"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-500">Type de champ</label>
+                                                            <select
+                                                                value={option.type}
+                                                                onChange={(e) => {
+                                                                    const newOpts = [...newProduct.customization_options];
+                                                                    newOpts[idx].type = e.target.value as 'text' | 'select';
+                                                                    setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                                }}
+                                                                className="w-full p-1.5 border rounded text-sm"
+                                                            >
+                                                                <option value="text">Texte libre</option>
+                                                                <option value="select">Liste déroulante</option>
+                                                                <option value="file">Fichier / Image (Client)</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newOpts = newProduct.customization_options.filter((_, i) => i !== idx);
+                                                            setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                        }}
+                                                        className="ml-2 text-gray-400 hover:text-red-500"
+                                                    >
+                                                        <X size={18} />
+                                                    </button>
+                                                </div>
+
+                                                {/* Options for Select Type */}
+                                                {option.type === 'select' && (
+                                                    <div>
+                                                        <label className="text-xs font-bold text-gray-500">Options (séparées par virgule)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={option.options?.join(', ')}
+                                                            onChange={(e) => {
+                                                                const newOpts = [...newProduct.customization_options];
+                                                                newOpts[idx].options = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                                                                setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                            }}
+                                                            className="w-full p-1.5 border rounded text-sm"
+                                                            placeholder="Ex: Rouge, Bleu, Vert"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <label className="flex items-center gap-2 text-xs text-gray-600">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={option.required}
+                                                        onChange={(e) => {
+                                                            const newOpts = [...newProduct.customization_options];
+                                                            newOpts[idx].required = e.target.checked;
+                                                            setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                        }}
+                                                        className="rounded text-green-600 focus:ring-green-500"
+                                                    />
+                                                    Champ obligatoire
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-gray-500 italic mb-2">Aucune option de personnalisation.</div>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNewProduct({
+                                            ...newProduct,
+                                            customization_options: [
+                                                ...(newProduct.customization_options || []),
+                                                { id: crypto.randomUUID(), type: 'text', label: '', required: true, options: [] }
+                                            ]
+                                        })
+                                    }}
+                                    className="mt-2 text-sm text-blue-600 font-bold flex items-center gap-1 hover:underline"
+                                >
+                                    <Plus size={16} /> Ajouter un champ
+                                </button>
+                            </div>
+
                             <div className="pt-2 border-t border-gray-200 mt-4">
                                 <label className="text-sm font-medium text-gray-700 flex justify-between">
                                     Description détaillée
@@ -525,6 +657,71 @@ export function ProductManager() {
                                     className="w-full p-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none text-sm min-h-[100px]"
                                     placeholder="Racontez l'histoire de ce produit..."
                                 />
+                            </div>
+
+                            {/* Digital Files Section (Ebooks) */}
+                            <div className="pt-2 border-t border-gray-200 mt-4">
+                                <label className="text-sm font-bold text-gray-700 block mb-3">Fichiers Numériques (E-books / PDF)</label>
+                                <p className="text-xs text-gray-500 mb-3">Ces fichiers seront envoyés au client après l'achat.</p>
+
+                                {newProduct.digital_files && newProduct.digital_files.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {newProduct.digital_files.map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-blue-50 p-2 rounded border border-blue-100">
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    <div className="p-1 bg-white rounded shadow-sm text-xs font-bold uppercase">{file.type}</div>
+                                                    <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newFiles = newProduct.digital_files.filter((_, i) => i !== idx);
+                                                        setNewProduct({ ...newProduct, digital_files: newFiles });
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-500"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <label className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors w-fit">
+                                    <Upload size={16} className="text-gray-500" />
+                                    <span className="text-sm font-medium text-gray-700">Uploader un fichier</span>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.epub,.mobi,.zip"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            if (!e.target.files || e.target.files.length === 0) return;
+                                            try {
+                                                setUploading(true);
+                                                const file = e.target.files[0];
+                                                const fileExt = file.name.split('.').pop();
+                                                const fileName = `digital/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+                                                const { error: uploadError } = await supabase.storage
+                                                    .from('product-images') // Re-using bucket for now, ideally 'digital-products' secure bucket
+                                                    .upload(fileName, file);
+
+                                                if (uploadError) throw uploadError;
+
+                                                const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+
+                                                setNewProduct({
+                                                    ...newProduct,
+                                                    digital_files: [...newProduct.digital_files, { name: file.name, url: data.publicUrl, type: fileExt || 'file' }]
+                                                });
+                                            } catch (err: any) {
+                                                alert("Erreur upload: " + err.message);
+                                            } finally {
+                                                setUploading(false);
+                                            }
+                                        }}
+                                    />
+                                </label>
                             </div>
                         </div>
 
@@ -543,9 +740,10 @@ export function ProductManager() {
                                 {editingId ? 'Mettre à jour' : 'Enregistrer'}
                             </button>
                         </div>
-                    </form>
-                </div>
-            )}
+                    </form >
+                </div >
+            )
+            }
 
             {/* Product List Table */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -599,6 +797,6 @@ export function ProductManager() {
                     </table>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

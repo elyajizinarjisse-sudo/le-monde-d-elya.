@@ -34,6 +34,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     const { items, cartTotal, clearCart } = useCart();
     const [step, setStep] = useState<'shipping' | 'payment' | 'success'>('shipping');
     const [clientSecret, setClientSecret] = useState('');
+    const [purchasedItems, setPurchasedItems] = useState<typeof items>([]);
 
     // Shipping State
     const [formData, setFormData] = useState({
@@ -113,7 +114,8 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 product_id: item.id,
                 title: item.title,
                 quantity: item.quantity,
-                price_at_purchase: item.price
+                price_at_purchase: item.price,
+                customizations: item.customizations || {} // Save custom text/files
             }));
 
             const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
@@ -132,6 +134,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             }).catch(err => console.error('Failed to send confirmation email:', err));
 
             // 4. Clear Cart & Show Success
+            setPurchasedItems(items); // Save items for display before clearing
             clearCart();
             setStep('success');
 
@@ -322,6 +325,40 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                             <button onClick={onClose} className="mt-6 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors">
                                 Retour à la boutique
                             </button>
+
+                            {/* Digital Downloads Section */}
+                            {purchasedItems.some(item => item.digital_files && item.digital_files.length > 0) && (
+                                <div className="mt-8 p-6 bg-purple-50 rounded-xl border border-purple-100 text-left">
+                                    <h4 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
+                                        ✨ Vos téléchargements numériques
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {purchasedItems.map((item, idx) => (
+                                            item.digital_files && item.digital_files.length > 0 && (
+                                                <div key={idx} className="bg-white p-4 rounded-lg border border-purple-100 shadow-sm">
+                                                    <p className="font-bold text-gray-800 mb-2">{item.title}</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {item.digital_files.map((file: any, fIdx: number) => (
+                                                            <a
+                                                                key={fIdx}
+                                                                href={file.file_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors"
+                                                            >
+                                                                Download {file.file_type || 'File'}
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-purple-600 mt-4">
+                                        * Ces liens sont aussi disponibles dans votre email de confirmation.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
