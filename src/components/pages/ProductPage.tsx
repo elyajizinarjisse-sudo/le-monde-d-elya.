@@ -150,9 +150,9 @@ export function ProductPage() {
                 .getPublicUrl(filePath);
 
             setCustomizationValues(prev => ({ ...prev, [label]: publicUrl }));
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error uploading file:', error);
-            alert('Erreur: ' + error.message);
+            alert('Erreur: ' + (error.message || 'Problème de téléchargement'));
         } finally {
             setUploadingFiles(prev => ({ ...prev, [label]: false }));
         }

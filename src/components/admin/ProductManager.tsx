@@ -37,13 +37,10 @@ export function ProductManager() {
         setIsLoading(false);
     };
 
-    const [debugError, setDebugError] = useState<string>('');
-
     const fetchCategories = async () => {
         const { data, error } = await supabase.from('menu_items').select('*').order('display_order');
         if (error) {
             console.error('Error fetching categories:', error);
-            setDebugError(error.message);
             return;
         }
 

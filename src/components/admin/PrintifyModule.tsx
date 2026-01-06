@@ -208,8 +208,6 @@ export function PrintifyModule() {
                 image_alt: images[0].alt,
                 images: images,
                 variants: variants,
-                images: images,
-                variants: variants,
                 category: designForm.category || 'Vêtements',
                 subcategory: designForm.subcategory,
                 description: `Produit imprimé à la demande. Qualité premium.\nModèle: ${selectedTemplate.title}.\nCouleurs disponibles: ${designForm.selectedColors.join(', ')}.\nTailles: ${designForm.selectedSizes.join(', ')}.`,
