@@ -27,14 +27,26 @@ export function CategoryPage() {
                 // Let's interpret the slug.
                 if (categorySlug && categorySlug !== 'soldes') {
                     try {
-                        const { data: menuData } = await supabase
+                        let menuQuery = supabase
                             .from('menu_items')
-                            .select('label, path')
-                            .ilike('path', `%${categorySlug}%`)
-                            .limit(1);
+                            .select('label, path');
+
+                        // Construct a robust path search
+                        // If we have a subcategory, we must find a menu item that includes BOTH in its path
+                        if (subcategorySlug) {
+                            menuQuery = menuQuery.ilike('path', `%${categorySlug}%${subcategorySlug}%`);
+                        } else {
+                            menuQuery = menuQuery.ilike('path', `%${categorySlug}%`);
+                        }
+
+                        const { data: menuData } = await menuQuery.limit(1);
 
                         if (menuData && menuData.length > 0) {
                             categoryLabel = menuData[0].label;
+                            // Critical: If we found a specific menu item, we rely on its Label for the DB query.
+                            // We MUST NOT filter by the URL slug anymore, because the URL slug (e.g. "personnalisation")
+                            // might not match the DB Subcategory (e.g. "Doudou").
+                            targetSlug = undefined;
                         } else {
                             categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
                             if (categorySlug.toLowerCase() === 'ebook') categoryLabel = 'E-book';
@@ -61,6 +73,7 @@ export function CategoryPage() {
 
                 if (data && data.length > 0) {
                     let filtered = data;
+                    // Only apply local filtering if we DIDN'T find a specific menu match (targetSlug is still set)
                     if (targetSlug) {
                         const normalize = (str: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-') : '';
                         filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(targetSlug!));
