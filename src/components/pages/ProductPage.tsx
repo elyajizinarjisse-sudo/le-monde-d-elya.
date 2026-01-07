@@ -10,6 +10,7 @@ import type { Product } from '../home/ProductCard';
 interface ProductVariant {
     name: string;
     price?: number | string; // Relaxed type to handle DB strings
+    selling_price?: number | string;
     stock?: number;
 }
 
