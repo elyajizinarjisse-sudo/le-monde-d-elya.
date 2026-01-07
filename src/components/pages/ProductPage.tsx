@@ -407,7 +407,22 @@ export function ProductPage() {
 
                                             // Only apply specific font logic to "Prénom" or "Message" fields
                                             const isTextToPreview = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
-                                            const activeFont = isTextToPreview ? fontClass : "";
+
+                                            let activeStyle = {};
+                                            let activeClass = "";
+
+                                            if (isTextToPreview) {
+                                                if (fontClass.includes("font-great-vibes")) {
+                                                    activeStyle = { fontFamily: "'Great Vibes', cursive" };
+                                                    activeClass = "text-4xl";
+                                                } else if (fontClass.includes("font-baton")) {
+                                                    activeStyle = { fontFamily: "'Roboto', sans-serif" };
+                                                    activeClass = "text-lg tracking-wide uppercase";
+                                                } else if (fontClass.includes("font-manuscrit")) {
+                                                    activeStyle = { fontFamily: "'Handlee', cursive" };
+                                                    activeClass = "text-xl";
+                                                }
+                                            }
 
                                             const isUrl = safeValue.startsWith('http');
                                             return (
@@ -418,7 +433,10 @@ export function ProductPage() {
                                                             <img src={value} alt="Preview" className="w-full h-full object-cover" />
                                                         </div>
                                                     ) : (
-                                                        <p className={`text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 inline-block ${activeFont}`}>
+                                                        <p
+                                                            className={`text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 inline-block ${activeClass}`}
+                                                            style={activeStyle}
+                                                        >
                                                             {safeValue}
                                                         </p>
                                                     )}
