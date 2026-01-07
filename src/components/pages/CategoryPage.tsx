@@ -51,9 +51,10 @@ export function CategoryPage() {
                 if (categorySlug === 'soldes') {
                     // query = query.eq('is_sale', true); 
                 } else if (categoryLabel) {
-                    // Search in both 'category' and 'subcategory' to handle deep hierarchy matches
-                    // Use standard Supabase syntax for OR filter
-                    query = query.or(`category.eq.${categoryLabel},subcategory.eq.${categoryLabel}`);
+                    // Search in both 'category' and 'subcategory' using ILIKE for case-insensitive matching
+                    // syntax: column.ilike.value
+                    // We use the simpler OR syntax string
+                    query = query.or(`category.ilike.%${categoryLabel}%,subcategory.ilike.%${categoryLabel}%`);
                 }
 
                 const { data } = await query;
