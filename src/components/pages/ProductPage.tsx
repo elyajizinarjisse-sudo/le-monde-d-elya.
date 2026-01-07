@@ -12,6 +12,7 @@ interface ProductVariant {
     price?: number | string; // Relaxed type to handle DB strings
     selling_price?: number | string;
     stock?: number;
+    image?: string;
 }
 
 interface FullProduct extends Product {
