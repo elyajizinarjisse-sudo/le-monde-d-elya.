@@ -242,12 +242,19 @@ export function ProductPage() {
 
                             {/* Thumbnails */}
                             {(() => {
-                                // Deduplicate images: Merge main image + gallery images, then use Set
-                                const allImages = [
-                                    product.image ? getImageUrl(product.image) : null,
-                                    ...(Array.isArray(product.images) ? product.images.map(getImageUrl) : [])
-                                ].filter(Boolean) as string[];
+                                // Deduplicate images:
+                                // 1. Get the main image URL
+                                const mainImgUrl = product.image ? getImageUrl(product.image) : '';
 
+                                // 2. Get gallery images
+                                const galleryImages = Array.isArray(product.images) ? product.images.map(getImageUrl).filter(Boolean) : [];
+
+                                // 3. Combine, but normalize to avoid duplicates (ignoring query params if possible, or just strict string match)
+                                // Actually, typical requirement: Main Image + Unique Gallery Images
+
+                                const allImages = [mainImgUrl, ...galleryImages].filter(Boolean) as string[];
+
+                                // Use Set for strict deduplication
                                 const uniqueImages = Array.from(new Set(allImages));
 
                                 if (uniqueImages.length <= 1) return null; // Don't show thumbnails if only 1 unique image
@@ -378,14 +385,6 @@ export function ProductPage() {
                                     <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
                                         ✨ Aperçu de votre personnalisation
                                     </h3>
-
-                                    {/* Font Loading */}
-                                    <style>{`
-                                        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Handlee&family=Roboto:wght@500&display=swap');
-                                        .font-cursif { font-family: 'Dancing Script', cursive; }
-                                        .font-baton { font-family: 'Roboto', sans-serif; }
-                                        .font-manuscrit { font-family: 'Handlee', cursive; }
-                                    `}</style>
 
                                     <div className="bg-white p-4 rounded-lg border border-indigo-100/50 shadow-inner space-y-4">
                                         {Object.entries(customizationValues).map(([key, value]) => {
