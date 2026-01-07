@@ -392,19 +392,7 @@ export function ProductPage() {
                                             const safeValue = getSafeString(value);
                                             if (!safeValue) return null;
 
-                                            // Determine font style if this is a text preview
-                                            let fontClass = "font-sans";
-                                            if (product.customization_options) {
-                                                const fontOptionLabel = product.customization_options.find(o => o.label.toLowerCase().includes("police"))?.label;
-                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
-
-                                                if (selectedFont) {
-                                                    if (selectedFont.toLowerCase().includes("cursif")) fontClass = "font-cursif text-2xl";
-                                                    else if (selectedFont.toLowerCase().includes("bâton") || selectedFont.toLowerCase().includes("baton")) fontClass = "font-baton text-lg tracking-wide uppercase";
-                                                    else if (selectedFont.toLowerCase().includes("manuscrit")) fontClass = "font-manuscrit text-xl";
-                                                }
-                                            }
-
+                                            // Font logic moved directly to render loop for robustness
                                             // Only apply specific font logic to "Prénom" or "Message" fields
                                             const isTextToPreview = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
 
