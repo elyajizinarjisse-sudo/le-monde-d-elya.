@@ -51,11 +51,9 @@ export function CategoryPage() {
                 if (categorySlug === 'soldes') {
                     // query = query.eq('is_sale', true); 
                 } else if (categoryLabel) {
-                    // Try exact match on category label first, otherwise loose match
-                    // We modify the query to filter results in memory if needed, or use .or()
-                    // But supabase .or() across columns is tricky with other filters.
-                    // For now, let's stick to the label we found.
-                    query = query.eq('category', categoryLabel);
+                    // Search in both 'category' and 'subcategory' to handle deep hierarchy matches
+                    // Use standard Supabase syntax for OR filter
+                    query = query.or(`category.eq.${categoryLabel},subcategory.eq.${categoryLabel}`);
                 }
 
                 const { data } = await query;

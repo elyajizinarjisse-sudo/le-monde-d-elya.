@@ -173,30 +173,36 @@ export function ProductManager() {
     };
 
     const handleEdit = (product: any) => {
-        // Prepare images array
-        let images = product.images || [];
-        // Fallback: if no 'images' array but 'image' exists, create one entry
-        if ((!images || images.length === 0) && product.image) {
-            images = [{ url: product.image, alt: product.image_alt || '' }];
-        }
+        try {
+            console.log("Editing Product:", product);
+            // Prepare images array
+            let images = product.images || [];
+            // Fallback: if no 'images' array but 'image' exists, create one entry
+            if ((!images || images.length === 0) && product.image) {
+                images = [{ url: product.image, alt: product.image_alt || '' }];
+            }
 
-        setNewProduct({
-            title: product.title,
-            price: product.price.toString(),
-            weight: product.weight?.toString() || '',
-            category: product.category || (categories[0]?.label || ''),
-            subcategory: product.subcategory || '',
-            images: images,
-            image: product.image,
-            image_alt: product.image_alt,
-            description: product.description || '',
-            aspect_ratio: product.aspect_ratio || 'portrait',
-            variants: product.variants || [],
-            customization_options: product.customization_options || [],
-            digital_files: product.digital_files || []
-        });
-        setEditingId(product.id);
-        setIsFormOpen(true);
+            setNewProduct({
+                title: product.title || '',
+                price: product.price !== undefined && product.price !== null ? product.price.toString() : '',
+                weight: product.weight?.toString() || '',
+                category: product.category || (categories[0]?.label || ''),
+                subcategory: product.subcategory || '',
+                images: images,
+                image: product.image || '',
+                image_alt: product.image_alt || '',
+                description: product.description || '',
+                aspect_ratio: product.aspect_ratio || 'portrait',
+                variants: Array.isArray(product.variants) ? product.variants : [],
+                customization_options: Array.isArray(product.customization_options) ? product.customization_options : [],
+                digital_files: Array.isArray(product.digital_files) ? product.digital_files : []
+            });
+            setEditingId(product.id);
+            setIsFormOpen(true);
+        } catch (err) {
+            console.error("Critical Error in handleEdit:", err);
+            alert("Erreur lors de l'ouverture du produit (Données corrompues?). Vérifiez la console.");
+        }
     };
 
     const resetForm = () => {
