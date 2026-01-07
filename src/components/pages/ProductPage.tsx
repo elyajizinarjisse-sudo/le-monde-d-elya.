@@ -120,7 +120,12 @@ export function ProductPage() {
 
         // Price Logic
         const variantData = product.variants?.find(v => v.name === selectedVariant);
-        const finalPrice = variantData?.price ? parsePrice(variantData.price) : parsePrice(product.price);
+        // Prefer selling_price, fallback to price
+        const variantPrice = variantData
+            ? (variantData.selling_price ? parsePrice(variantData.selling_price) : parsePrice(variantData.price))
+            : 0;
+
+        const finalPrice = variantData ? variantPrice : parsePrice(product.price);
 
         addToCart({
             ...product,
@@ -160,8 +165,13 @@ export function ProductPage() {
 
     // Calculate current price for display
     const currentPrice = product
-        ? (selectedVariant && product.variants?.find(v => v.name === selectedVariant)?.price
-            ? parsePrice(product.variants.find(v => v.name === selectedVariant)?.price)
+        ? (selectedVariant
+            ? (() => {
+                const v = product.variants?.find(varItem => varItem.name === selectedVariant);
+                if (!v) return parsePrice(product.price);
+                // Prefer selling_price, fallback to price
+                return v.selling_price ? parsePrice(v.selling_price) : parsePrice(v.price);
+            })()
             : parsePrice(product.price))
         : 0;
 
@@ -286,7 +296,7 @@ export function ProductPage() {
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">Taxes incluses. Livraison calculée au paiement.</p>
+                                <p className="text-xs text-gray-500 mt-1">Taxes et livraison calculées au paiement.</p>
                             </div>
 
                             {/* Customization Options */}
