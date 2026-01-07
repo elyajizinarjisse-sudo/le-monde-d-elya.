@@ -408,19 +408,25 @@ export function ProductPage() {
                                             // Only apply specific font logic to "Prénom" or "Message" fields
                                             const isTextToPreview = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
 
-                                            let activeStyle = {};
+                                            let activeStyle: React.CSSProperties = {};
                                             let activeClass = "";
 
-                                            if (isTextToPreview) {
-                                                if (fontClass.includes("font-great-vibes")) {
-                                                    activeStyle = { fontFamily: "'Great Vibes', cursive" };
-                                                    activeClass = "text-4xl";
-                                                } else if (fontClass.includes("font-baton")) {
-                                                    activeStyle = { fontFamily: "'Roboto', sans-serif" };
-                                                    activeClass = "text-lg tracking-wide uppercase";
-                                                } else if (fontClass.includes("font-manuscrit")) {
-                                                    activeStyle = { fontFamily: "'Handlee', cursive" };
-                                                    activeClass = "text-xl";
+                                            if (isTextToPreview && product.customization_options) {
+                                                const fontOptionLabel = product.customization_options.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
+
+                                                if (selectedFont) {
+                                                    const fLower = selectedFont.toLowerCase();
+                                                    if (fLower.includes("cursif")) {
+                                                        activeStyle = { fontFamily: "'Great Vibes', cursive", fontWeight: 400 };
+                                                        activeClass = "text-5xl py-2 pl-1";
+                                                    } else if (fLower.includes("bâton") || fLower.includes("baton")) {
+                                                        activeStyle = { fontFamily: "'Roboto', sans-serif" };
+                                                        activeClass = "text-lg tracking-wide uppercase";
+                                                    } else if (fLower.includes("manuscrit")) {
+                                                        activeStyle = { fontFamily: "'Handlee', cursive" };
+                                                        activeClass = "text-xl";
+                                                    }
                                                 }
                                             }
 
@@ -434,7 +440,7 @@ export function ProductPage() {
                                                         </div>
                                                     ) : (
                                                         <p
-                                                            className={`text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 inline-block ${activeClass}`}
+                                                            className={`text-indigo-600 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 inline-block transition-all duration-300 ${activeClass}`}
                                                             style={activeStyle}
                                                         >
                                                             {safeValue}
