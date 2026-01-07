@@ -108,7 +108,10 @@ export function ProductPage() {
     // Sync Image with Variant
     useEffect(() => {
         if (!selectedVariant || !product || !product.variants) return;
-        const variant = product.variants.find(v => v.name === selectedVariant);
+        // Robust finding: try exact match first, then trimmed match
+        const variant = product.variants.find(v => v.name === selectedVariant)
+            || product.variants.find(v => v.name.trim() === selectedVariant.trim());
+
         if (variant && variant.image) {
             setSelectedImage(variant.image);
         }
@@ -238,18 +241,20 @@ export function ProductPage() {
                             </div>
 
                             {/* Thumbnails */}
-                            {Array.isArray(product.images) && product.images.length > 0 && (
-                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                    <button
-                                        onClick={() => setSelectedImage(getImageUrl(product.image))}
-                                        className={`w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden ${selectedImage === getImageUrl(product.image) ? 'border-primary' : 'border-transparent'}`}
-                                    >
-                                        <img src={getImageUrl(product.image)} className="w-full h-full object-cover" />
-                                    </button>
-                                    {product.images.map((img, idx) => {
-                                        const thumbUrl = getImageUrl(img);
-                                        if (!thumbUrl) return null;
-                                        return (
+                            {(() => {
+                                // Deduplicate images: Merge main image + gallery images, then use Set
+                                const allImages = [
+                                    product.image ? getImageUrl(product.image) : null,
+                                    ...(Array.isArray(product.images) ? product.images.map(getImageUrl) : [])
+                                ].filter(Boolean) as string[];
+
+                                const uniqueImages = Array.from(new Set(allImages));
+
+                                if (uniqueImages.length <= 1) return null; // Don't show thumbnails if only 1 unique image
+
+                                return (
+                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                                        {uniqueImages.map((thumbUrl, idx) => (
                                             <button
                                                 key={idx}
                                                 onClick={() => setSelectedImage(thumbUrl)}
@@ -257,10 +262,10 @@ export function ProductPage() {
                                             >
                                                 <img src={thumbUrl} className="w-full h-full object-cover" />
                                             </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* RIGHT: Info */}
@@ -373,10 +378,37 @@ export function ProductPage() {
                                     <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
                                         ✨ Aperçu de votre personnalisation
                                     </h3>
+
+                                    {/* Font Loading */}
+                                    <style>{`
+                                        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Handlee&family=Roboto:wght@500&display=swap');
+                                        .font-cursif { font-family: 'Dancing Script', cursive; }
+                                        .font-baton { font-family: 'Roboto', sans-serif; }
+                                        .font-manuscrit { font-family: 'Handlee', cursive; }
+                                    `}</style>
+
                                     <div className="bg-white p-4 rounded-lg border border-indigo-100/50 shadow-inner space-y-4">
                                         {Object.entries(customizationValues).map(([key, value]) => {
                                             const safeValue = getSafeString(value);
                                             if (!safeValue) return null;
+
+                                            // Determine font style if this is a text preview
+                                            let fontClass = "font-sans";
+                                            if (product.customization_options) {
+                                                const fontOptionLabel = product.customization_options.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
+
+                                                if (selectedFont) {
+                                                    if (selectedFont.toLowerCase().includes("cursif")) fontClass = "font-cursif text-2xl";
+                                                    else if (selectedFont.toLowerCase().includes("bâton") || selectedFont.toLowerCase().includes("baton")) fontClass = "font-baton text-lg tracking-wide uppercase";
+                                                    else if (selectedFont.toLowerCase().includes("manuscrit")) fontClass = "font-manuscrit text-xl";
+                                                }
+                                            }
+
+                                            // Only apply specific font logic to "Prénom" or "Message" fields
+                                            const isTextToPreview = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
+                                            const activeFont = isTextToPreview ? fontClass : "";
+
                                             const isUrl = safeValue.startsWith('http');
                                             return (
                                                 <div key={key} className="flex flex-col gap-1">
@@ -386,7 +418,7 @@ export function ProductPage() {
                                                             <img src={value} alt="Preview" className="w-full h-full object-cover" />
                                                         </div>
                                                     ) : (
-                                                        <p className="text-lg font-handwriting text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 inline-block">
+                                                        <p className={`text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 inline-block ${activeFont}`}>
                                                             {safeValue}
                                                         </p>
                                                     )}

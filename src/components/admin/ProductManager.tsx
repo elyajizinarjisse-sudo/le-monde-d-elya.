@@ -286,6 +286,43 @@ export function ProductManager() {
                     <Plus size={20} />
                     Ajouter un produit
                 </button>
+                <button
+                    onClick={async () => {
+                        const options = [
+                            {
+                                "id": "opt_name",
+                                "type": "text",
+                                "label": "Prénom à broder",
+                                "required": true,
+                                "options": []
+                            },
+                            {
+                                "id": "opt_color",
+                                "type": "select",
+                                "label": "Couleur de la broderie",
+                                "required": true,
+                                "options": ["Or", "Argent", "Bleu Marin", "Rose Pâle", "Chocolat"]
+                            },
+                            {
+                                "id": "opt_font",
+                                "type": "select",
+                                "label": "Police d'écriture",
+                                "required": true,
+                                "options": ["Cursif (Elégant)", "Bâton (Moderne)", "Manuscrit"]
+                            }
+                        ];
+                        const { error } = await supabase
+                            .from('products')
+                            .update({ customization_options: options })
+                            .eq('id', 10);
+
+                        if (error) alert("Erreur: " + error.message);
+                        else alert("Réparation Doudou effectuée !!");
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium ml-2"
+                >
+                    🪄 Réparer Doudou
+                </button>
             </div>
 
             {/* Add Product Form */}
