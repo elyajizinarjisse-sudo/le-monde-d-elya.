@@ -105,6 +105,15 @@ export function ProductPage() {
         fetchProduct();
     }, [id]);
 
+    // Sync Image with Variant
+    useEffect(() => {
+        if (!selectedVariant || !product || !product.variants) return;
+        const variant = product.variants.find(v => v.name === selectedVariant);
+        if (variant && variant.image) {
+            setSelectedImage(variant.image);
+        }
+    }, [selectedVariant, product]);
+
     const handleAddToCart = () => {
         if (!product) return;
 
