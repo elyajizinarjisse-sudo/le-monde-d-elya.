@@ -6,7 +6,9 @@ import { ProductCard } from '../home/ProductCard';
 import { supabase } from '../../lib/supabase';
 
 export function CategoryPage() {
-    const { categorySlug, subcategorySlug } = useParams();
+    const { categorySlug: rawCategorySlug, subcategorySlug: rawSubcategorySlug } = useParams();
+    const categorySlug = rawCategorySlug ? decodeURIComponent(rawCategorySlug) : undefined;
+    const subcategorySlug = rawSubcategorySlug ? decodeURIComponent(rawSubcategorySlug) : undefined;
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 

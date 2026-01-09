@@ -265,6 +265,41 @@ export function ProductManager() {
         }
     };
 
+    const handleVariantImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, variantIndex: number) => {
+        try {
+            if (!event.target.files || event.target.files.length === 0) return;
+            setUploading(true);
+
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `variants/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('product-images')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+
+            setNewProduct(prev => {
+                const newVariants = [...prev.variants];
+                if (newVariants[variantIndex]) {
+                    newVariants[variantIndex] = {
+                        ...newVariants[variantIndex],
+                        image: data.publicUrl
+                    };
+                }
+                return { ...prev, variants: newVariants };
+            });
+
+        } catch (error: any) {
+            alert("Erreur lors de l'upload de l'image variante : " + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const availableSubcategories = newProduct.category
         ? categories.find(c => c.label === newProduct.category)?.subcategories || []
         : [];
@@ -508,13 +543,21 @@ export function ProductManager() {
                                     <div className="space-y-3">
                                         {newProduct.variants.map((variant: any, idx: number) => (
                                             <div key={idx} className="flex flex-wrap gap-3 items-end bg-white p-3 border border-gray-200 rounded-lg">
-                                                <div className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded border border-gray-200 overflow-hidden">
+                                                {/* Variant Image Upload */}
+                                                <label className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded border border-gray-200 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative group">
                                                     {variant.image ? (
-                                                        <img src={variant.image} className="w-full h-full object-cover" />
+                                                        <img src={variant.image} className="w-full h-full object-cover" alt="Variant" />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Plus size={16} /></div>
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Upload size={16} /></div>
                                                     )}
-                                                </div>
+                                                    {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleVariantImageUpload(e, idx)}
+                                                    />
+                                                </label>
 
                                                 <div className="flex-1 min-w-[150px]">
                                                     <label className="text-xs text-gray-500 font-bold uppercase">Nom (Couleur/Taille)</label>
