@@ -228,7 +228,10 @@ export function ProductPage() {
 
                         {/* LEFT: Gallery */}
                         <div className="p-6 md:p-8 bg-gray-50/50">
-                            <div className="relative aspect-square md:aspect-[4/3] rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 mb-4">
+                            <div
+                                className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 mb-4 w-full"
+                                style={{ aspectRatio: product.aspect_ratio === 'portrait' ? '3/4' : product.aspect_ratio === 'landscape' ? '4/3' : '1/1' }}
+                            >
                                 <img
                                     src={selectedImage}
                                     alt={getSafeString(product.title)}

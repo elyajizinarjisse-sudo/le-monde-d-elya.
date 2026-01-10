@@ -550,6 +550,14 @@ export function ProductManager() {
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-gray-300"><Upload size={16} /></div>
                                                     )}
+
+                                                    {/* Hover Overlay with Edit Icon */}
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="bg-white/90 p-1 rounded-full shadow-sm">
+                                                            <Upload size={12} className="text-gray-700" />
+                                                        </div>
+                                                    </div>
+
                                                     {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
                                                     <input
                                                         type="file"
