@@ -384,69 +384,123 @@ export function ProductPage() {
                             )}
 
                             {/* Live Preview */}
+                            {/* Visual Preview (Configuration Based) */}
                             {(Object.keys(customizationValues).length > 0 || Object.values(uploadingFiles).some(v => v)) && (
-                                <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 shadow-sm animate-scale-in">
+                                <div className="mb-6 animate-scale-in">
                                     <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
                                         ✨ Aperçu de votre personnalisation
                                     </h3>
 
-                                    <div className="bg-white p-4 rounded-lg border border-indigo-100/50 shadow-inner space-y-4">
-                                        {Object.entries(customizationValues).map(([key, value]) => {
-                                            const safeValue = getSafeString(value);
-                                            if (!safeValue) return null;
-
-                                            // Font logic moved directly to render loop for robustness
-                                            // Only apply specific font logic to "Prénom" or "Message" fields
-                                            const isTextToPreview = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
-
-                                            let activeStyle: React.CSSProperties = {};
-                                            let activeClass = "";
-
-                                            if (isTextToPreview && product.customization_options) {
-                                                const fontOptionLabel = product.customization_options.find(o => o.label.toLowerCase().includes("police"))?.label;
-                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
-
-                                                if (selectedFont) {
-                                                    const fLower = selectedFont.toLowerCase();
-                                                    if (fLower.includes("cursif")) {
-                                                        activeStyle = { fontFamily: "'Great Vibes', cursive", fontWeight: 400 };
-                                                        activeClass = "text-5xl py-2 pl-1";
-                                                    } else if (fLower.includes("bâton") || fLower.includes("baton")) {
-                                                        activeStyle = { fontFamily: "'Roboto', sans-serif" };
-                                                        activeClass = "text-lg tracking-wide uppercase";
-                                                    } else if (fLower.includes("manuscrit")) {
-                                                        activeStyle = { fontFamily: "'Handlee', cursive" };
-                                                        activeClass = "text-xl";
-                                                    }
-                                                }
+                                    {(() => {
+                                        // PREVIEW CONFIGURATION
+                                        const PREVIEW_ZONES: Record<string, { templateUrl?: string; style: React.CSSProperties }> = {
+                                            '15': { // Casquette
+                                                templateUrl: 'https://dmrdmzjswllpcibmdwfy.supabase.co/storage/v1/object/public/product-images/public/casquette_preview_template.png',
+                                                style: { top: '32%', left: '15%', width: '70%', height: '20%' }
+                                            },
+                                            '11': { // Tee-shirt
+                                                style: { top: '20%', left: '28%', width: '44%', height: '40%' } // Chest Area
+                                            },
+                                            '10': { // Doudou
+                                                style: { top: '55%', left: '25%', width: '50%', height: '20%' } // Tummy Area
+                                            },
+                                            '13': { // Mug 1
+                                                style: { top: '30%', left: '25%', width: '50%', height: '40%' } // Center Mug
+                                            },
+                                            '14': { // Mug 2
+                                                style: { top: '30%', left: '25%', width: '50%', height: '40%' } // Center Mug
                                             }
+                                        };
 
-                                            const isUrl = safeValue.startsWith('http');
+                                        const previewConfig = PREVIEW_ZONES[getSafeString(product.id)];
+
+                                        if (previewConfig) {
+                                            const bgImage = previewConfig.templateUrl || selectedImage;
+
                                             return (
-                                                <div key={key} className="flex flex-col gap-1">
-                                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{key}</span>
-                                                    {isUrl ? (
-                                                        <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
-                                                            <img src={value} alt="Preview" className="w-full h-full object-cover" />
-                                                        </div>
-                                                    ) : (
-                                                        <p
-                                                            className={`text-indigo-600 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 inline-block transition-all duration-300 ${activeClass}`}
-                                                            style={activeStyle}
-                                                        >
-                                                            {safeValue}
-                                                        </p>
-                                                    )}
+                                                <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                                                    {/* Background Layer */}
+                                                    <img
+                                                        src={bgImage}
+                                                        alt="Aperçu"
+                                                        className="absolute inset-0 w-full h-full object-contain z-10"
+                                                    />
+
+                                                    {/* Customization Overlay Area */}
+                                                    <div
+                                                        className="absolute z-20 flex items-center justify-center overflow-hidden"
+                                                        style={{
+                                                            ...previewConfig.style,
+                                                        }}
+                                                    >
+                                                        {/* Text Layer */}
+                                                        {Object.entries(customizationValues).map(([key, value]) => {
+                                                            if (!value) return null;
+                                                            const isText = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
+                                                            if (!isText) return null;
+
+                                                            // Font Logic
+                                                            const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                            const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
+                                                            let fontFamily = "inherit";
+                                                            if (selectedFont?.toLowerCase().includes("cursif")) fontFamily = "'Great Vibes', cursive";
+                                                            else if (selectedFont?.toLowerCase().includes("bâton")) fontFamily = "'Roboto', sans-serif";
+                                                            else if (selectedFont?.toLowerCase().includes("manuscrit")) fontFamily = "'Handlee', cursive";
+
+                                                            // Color Logic
+                                                            const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
+                                                            const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
+
+                                                            const colorMap: Record<string, string> = {
+                                                                "Noir": "black", "Blanc": "white", "Rouge": "#D32F2F", "Bleu Marine": "#1A237E", "Or": "#FFD700",
+                                                                "Argent": "#C0C0C0", "Rose": "#E91E63", "Bleu": "#1E88E5", "Vert": "#43A047"
+                                                            };
+                                                            const cssColor = colorMap[selectedColor] || selectedColor;
+
+                                                            return (
+                                                                <span key={key} style={{ fontFamily, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center', whiteSpace: 'pre-wrap' }}>
+                                                                    {value}
+                                                                </span>
+                                                            );
+                                                        })}
+
+                                                        {/* Image Layer */}
+                                                        {Object.entries(customizationValues).map(([key, value]) => {
+                                                            if (!value || !value.startsWith('http')) return null;
+                                                            return (
+                                                                <img key={key} src={value} alt="Logo" className="absolute inset-0 w-full h-full object-contain p-1" />
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                             );
-                                        })}
-                                        {Object.values(uploadingFiles).some(v => v) && (
-                                            <div className="flex items-center gap-2 text-indigo-600 text-sm animate-pulse">
-                                                <Loader2 size={16} className="animate-spin" />
-                                                <span>Génération de l'aperçu...</span>
-                                            </div>
-                                        )}
-                                    </div>
+                                        } else {
+                                            // GENERIC FALLBACK LIST
+                                            return (
+                                                <div className="bg-white p-4 rounded-lg border border-indigo-100/50 shadow-inner space-y-4">
+                                                    {Object.entries(customizationValues).map(([key, value]) => {
+                                                        const safeValue = getSafeString(value);
+                                                        if (!safeValue) return null;
+                                                        const isUrl = safeValue.startsWith('http');
+                                                        return (
+                                                            <div key={key} className="flex flex-col gap-1">
+                                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{key}</span>
+                                                                {isUrl ? (
+                                                                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
+                                                                        <img src={value} alt="Preview" className="w-full h-full object-cover" />
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-indigo-600 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 inline-block font-medium">
+                                                                        {safeValue}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        }
+                                    })()}
                                 </div>
                             )}
 
