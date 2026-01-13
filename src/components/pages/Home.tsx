@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Hero } from '../home/Hero';
 import { ProductSection } from '../home/ProductSection';
 import { BlogSection } from '../home/BlogSection';
