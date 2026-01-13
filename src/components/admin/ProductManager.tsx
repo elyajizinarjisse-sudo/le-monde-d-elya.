@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { Plus, Upload, X } from 'lucide-react';
 import { formatPrice } from '../../lib/currency';
 import { supabase } from '../../lib/supabase';
@@ -303,6 +305,26 @@ export function ProductManager() {
     const availableSubcategories = newProduct.category
         ? categories.find(c => c.label === newProduct.category)?.subcategories || []
         : [];
+
+
+    const modules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            ['link'],
+            ['clean']
+        ],
+    };
+
+    const formats = [
+        'header',
+        'bold', 'italic', 'underline', 'strike',
+        'list', 'bullet',
+        'color', 'background',
+        'link'
+    ];
 
     return (
         <div className="space-y-8">
@@ -742,12 +764,17 @@ export function ProductManager() {
                                     Description détaillée
                                     <span className="text-xs text-secondary font-normal">Pour vos clients</span>
                                 </label>
-                                <textarea
-                                    value={newProduct.description}
-                                    onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
-                                    className="w-full p-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none text-sm min-h-[100px]"
-                                    placeholder="Racontez l'histoire de ce produit..."
-                                />
+                                <div className="quill-editor-container bg-white rounded-lg">
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={newProduct.description}
+                                        onChange={(value) => setNewProduct({ ...newProduct, description: value })}
+                                        modules={modules}
+                                        formats={formats}
+                                        className="min-h-[200px]"
+                                        placeholder="Racontez l'histoire de ce produit... (Vous pouvez mettre en forme le texte et ajouter des liens)"
+                                    />
+                                </div>
                             </div>
 
                             {/* Digital Files Section (Ebooks) */}
