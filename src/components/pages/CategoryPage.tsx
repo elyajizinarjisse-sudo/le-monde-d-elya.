@@ -28,44 +28,65 @@ export function CategoryPage() {
                 let categoryLabel = '';
 
                 // 1. Try to find category in menu_items matching the slug
-                // We assume path in menu_items might be "/categorySlug" or just "categorySlug" or "/category/categorySlug"
-                // Let's interpret the slug.
                 if (categorySlug && categorySlug !== 'soldes') {
                     try {
-                        let menuQuery = supabase
-                            .from('menu_items')
-                            .select('label, path');
+                        let categoryFound = false;
 
-                        // 1. Try Path Match
-                        // Construct a robust path search
-                        if (subcategorySlug) {
-                            menuQuery = menuQuery.ilike('path', `%${categorySlug}%${subcategorySlug}%`);
-                        } else {
-                            menuQuery = menuQuery.ilike('path', `%${categorySlug}%`);
+                        // Strategy A: Try exact Label Match first (e.g. slug "jouets" -> label "Jouets")
+                        // This fixes the issue where broad path match matched children first.
+                        const { data: labelData } = await supabase
+                            .from('menu_items')
+                            .select('label')
+                            .ilike('label', categorySlug)
+                            .limit(1);
+
+                        if (labelData && labelData.length > 0) {
+                            categoryLabel = labelData[0].label;
+                            targetSlug = undefined;
+                            debug.strategy = 'Exact Label Match';
+                            debug.label = categoryLabel;
+                            categoryFound = true;
                         }
 
-                        const { data: menuData } = await menuQuery.limit(1);
-
-                        if (menuData && menuData.length > 0) {
-                            categoryLabel = menuData[0].label;
-                            targetSlug = undefined;
-                            debug.strategy = 'Path Match';
-                            debug.label = categoryLabel;
-                        } else {
-                            // 2. Fallback: Try Label Match (e.g. slug "deco" -> label "Déco")
-                            const { data: labelData } = await supabase
+                        // Strategy B: Try Exact Path Match (e.g. slug "jouets" -> path "/category/jouets")
+                        if (!categoryFound) {
+                            const { data: pathData } = await supabase
                                 .from('menu_items')
                                 .select('label')
-                                .ilike('label', categorySlug) // Search for label matching slug
+                                .eq('path', `/category/${categorySlug}`)
                                 .limit(1);
 
-                            if (labelData && labelData.length > 0) {
-                                categoryLabel = labelData[0].label;
+                            if (pathData && pathData.length > 0) {
+                                categoryLabel = pathData[0].label;
                                 targetSlug = undefined;
-                                debug.strategy = 'Label Match';
+                                debug.strategy = 'Exact Path Match';
+                                debug.label = categoryLabel;
+                                categoryFound = true;
+                            }
+                        }
+
+                        // Strategy C: Fallback to Robust Path Search (only if A and B failed)
+                        if (!categoryFound) {
+                            let menuQuery = supabase.from('menu_items').select('label, path');
+
+                            if (subcategorySlug) {
+                                // For subcategories, we need the broad match
+                                menuQuery = menuQuery.ilike('path', `%${categorySlug}%${subcategorySlug}%`);
+                            } else {
+                                // For main categories, restrict to ending with the slug to avoid children
+                                // e.g. match ".../jouets" but NOT ".../jouets/bebe"
+                                menuQuery = menuQuery.or(`path.ilike.%/${categorySlug},path.ilike.%/${categorySlug}/`);
+                            }
+
+                            const { data: menuData } = await menuQuery.limit(1);
+
+                            if (menuData && menuData.length > 0) {
+                                categoryLabel = menuData[0].label;
+                                targetSlug = undefined;
+                                debug.strategy = 'Path Suffix Match';
                                 debug.label = categoryLabel;
                             } else {
-                                // 3. Last Resort: Capitalize slug
+                                // Final Fallback: Capitalize
                                 categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
                                 if (categorySlug.toLowerCase() === 'ebook') categoryLabel = 'E-book';
                                 debug.strategy = 'Capitalization Fallback';
