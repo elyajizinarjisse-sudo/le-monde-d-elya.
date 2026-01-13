@@ -746,7 +746,16 @@ export function ProductPage() {
                                                                                     "Vert": "#43A047", "Green": "#43A047",
                                                                                     "Chocolat": "#5D4037", "Chocolate": "#5D4037",
                                                                                     "Violet": "#9C27B0", "Purple": "#9C27B0",
-                                                                                    "Jaune": "#FFD600", "Yellow": "#FFD600" // Using a slightly deeper yellow for visibility
+                                                                                    "Jaune": "#FFD600", "Yellow": "#FFD600",
+                                                                                    "Orange": "#FF5722",
+                                                                                    "Gris": "#757575", "Grey": "#757575", "Gray": "#757575",
+                                                                                    "Beige": "#D4C4A8",
+                                                                                    "Turquoise": "#00BCD4", "Cyan": "#00BCD4",
+                                                                                    "Bordeaux": "#800020", "Burgundy": "#800020",
+                                                                                    "Rose Vif": "#FF4081", "Hot Pink": "#FF4081",
+                                                                                    "Vert Sapin": "#2E7D32", "Forest Green": "#2E7D32",
+                                                                                    "Bleu Ciel": "#42A5F5", "Sky Blue": "#42A5F5",
+                                                                                    "Lavande": "#B39DDB", "Lavender": "#B39DDB"
                                                                                 };
                                                                                 const cssColor = colorMap[selectedColor] || selectedColor;
 
