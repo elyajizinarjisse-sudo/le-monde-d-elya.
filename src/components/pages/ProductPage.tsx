@@ -611,7 +611,8 @@ export function ProductPage() {
                                                     />
 
                                                     {/* Customization Overlay Area - Only show on Front view for Casquettes to avoid ghosting */}
-                                                    {((getSafeString(product.id) !== '15' && getSafeString(product.id) !== '16') || currentView === 'front') && (
+                                                    {/* Customization Overlay Area - Always active, internal filtering logic handles view visibility */}
+                                                    {(true) && (
                                                         <div
                                                             className="absolute z-20 flex items-center justify-center pointer-events-none"
                                                             style={{
@@ -662,6 +663,21 @@ export function ProductPage() {
                                                                         if (isExcluded) return false;
                                                                         const option = product.customization_options?.find(o => getSafeString(o.label) === key);
                                                                         if (option && option.type !== 'text') return false;
+
+                                                                        // MULTI-VIEW FILTERING:
+                                                                        // Only show "Face/Front" on 'front' view (or if view is null/undefined default)
+                                                                        // Only show "Dos/Back" on 'back' view
+                                                                        // Only show "Droit/Right" on 'right' view
+                                                                        // Only show "Gauche/Left" on 'left' view
+                                                                        if (isCasquette) {
+                                                                            const currentViewSafe = currentView || 'front'; // Default to front if null
+
+                                                                            if ((k.includes('face') || k.includes('front')) && currentViewSafe !== 'front') return false;
+                                                                            if ((k.includes('dos') || k.includes('back') || k.includes('arrière')) && currentViewSafe !== 'back') return false;
+                                                                            if ((k.includes('droit') || k.includes('right')) && currentViewSafe !== 'right') return false;
+                                                                            if ((k.includes('gauche') || k.includes('left')) && currentViewSafe !== 'left') return false;
+                                                                        }
+
                                                                         return true;
                                                                     });
 
@@ -745,10 +761,11 @@ export function ProductPage() {
                                                                     );
                                                                 })()}
                                                             </div >
+                                                        </div >
                                                     )}
-                                                            {/* Pointer events wrapper end */}
-                                                        </div>
+                                                    {/* Pointer events wrapper end */}
                                                 </div>
+
                                             );
                                         } else {
                                             // GENERIC FALLBACK LIST
@@ -889,6 +906,6 @@ export function ProductPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
