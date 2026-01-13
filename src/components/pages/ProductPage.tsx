@@ -632,6 +632,16 @@ export function ProductPage() {
                                                                 {Object.entries(customizationValues).map(([key, value]) => {
                                                                     if (!value || !value.startsWith('http')) return null;
 
+                                                                    // Image View Filtering
+                                                                    const k = key.toLowerCase();
+                                                                    if (isCasquette) {
+                                                                        const currentViewSafe = currentView || 'front';
+                                                                        if ((k.includes('face') || k.includes('front')) && currentViewSafe !== 'front') return null;
+                                                                        if ((k.includes('dos') || k.includes('back') || k.includes('arrière')) && currentViewSafe !== 'back') return null;
+                                                                        if ((k.includes('droit') || k.includes('right')) && currentViewSafe !== 'right') return null;
+                                                                        if ((k.includes('gauche') || k.includes('left')) && currentViewSafe !== 'left') return null;
+                                                                    }
+
                                                                     return (
                                                                         <div
                                                                             key={key}
@@ -659,6 +669,7 @@ export function ProductPage() {
                                                                     const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
                                                                         if (!value) return false;
                                                                         const k = key.toLowerCase();
+                                                                        console.log(`Filter Check: Key="${key}" View="${currentView}"`);
                                                                         const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
                                                                         if (isExcluded) return false;
                                                                         const option = product.customization_options?.find(o => getSafeString(o.label) === key);
