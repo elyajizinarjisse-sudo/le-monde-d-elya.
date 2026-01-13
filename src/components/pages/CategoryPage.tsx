@@ -22,7 +22,7 @@ export function CategoryPage() {
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
-            let debug = { slug: categorySlug, step: 'Start', label: '', found: 0, strategy: 'none' };
+            let debug: { slug: string | undefined; step: string; label: string; found: number; strategy: string; error?: string } = { slug: categorySlug, step: 'Start', label: '', found: 0, strategy: 'none' };
             try {
                 // Determine Category Label dynamically
                 let categoryLabel = '';
