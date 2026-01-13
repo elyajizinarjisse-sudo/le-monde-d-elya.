@@ -17,6 +17,7 @@ export function ProductManager() {
     const [newProduct, setNewProduct] = useState({
         title: '',
         price: '',
+        sale_price: '', // NEW
         weight: '',
         category: '', // Will start empty and populate after fetch
         subcategory: '',
@@ -117,6 +118,7 @@ export function ProductManager() {
         const productPayload = {
             title: newProduct.title,
             price: parseFloat(newProduct.price),
+            sale_price: newProduct.sale_price ? parseFloat(newProduct.sale_price) : null, // NEW: Save sale price
             // Legacy fields
             image: mainImage,
             image_alt: mainImageAlt,
@@ -382,486 +384,498 @@ export function ProductManager() {
                 </button>
             </div>
 
-            {/* Add Product Form */}
+            {/* Add Product Form (MODAL) */}
             {isFormOpen && (
-                <div className="bg-white p-6 rounded-xl border border-pastel-pink shadow-md animate-in fade-in slide-in-from-top-4">
-                    <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-bold text-gray-800">{editingId ? 'Modifier le Produit' : 'Nouveau Produit'}</h4>
-                        <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
-                            <X size={20} />
-                        </button>
-                    </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-pastel-pink shadow-2xl animate-in fade-in zoom-in-95 p-6 relative">
+                        <div className="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 pb-4 border-b border-gray-100">
 
-                    <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Nom du produit</label>
-                            <input
-                                required
-                                type="text"
-                                value={newProduct.title}
-                                onChange={e => setNewProduct({ ...newProduct, title: e.target.value })}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                                placeholder="Ex: Livre de contes"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Prix (€)</label>
-                            <input
-                                required
-                                type="number"
-                                value={newProduct.price}
-                                onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                                placeholder="0.00"
-                            />
+                            <h4 className="font-bold text-gray-800">{editingId ? 'Modifier le Produit' : 'Nouveau Produit'}</h4>
+                            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Poids (g)</label>
-                            <input
-                                type="number"
-                                value={newProduct.weight}
-                                onChange={e => setNewProduct({ ...newProduct, weight: e.target.value })}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                                placeholder="Ex: 500"
-                            />
-                        </div>
+                        <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Nom du produit</label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={newProduct.title}
+                                    onChange={e => setNewProduct({ ...newProduct, title: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                    placeholder="Ex: Livre de contes"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Prix (€)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    value={newProduct.price}
+                                    onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-red-500">Prix Soldé (€) (Optionnel)</label>
+                                <input
+                                    type="number"
+                                    value={newProduct.sale_price}
+                                    onChange={e => setNewProduct({ ...newProduct, sale_price: e.target.value })}
+                                    className="w-full p-2 border border-red-300 bg-red-50 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none"
+                                    placeholder="Ex: 10.00"
+                                />
+                            </div>
 
-                        {/* Dynamic Category Selection */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Catégorie</label>
-                            <div className="flex flex-col gap-1">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Poids (g)</label>
+                                <input
+                                    type="number"
+                                    value={newProduct.weight}
+                                    onChange={e => setNewProduct({ ...newProduct, weight: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                                    placeholder="Ex: 500"
+                                />
+                            </div>
+
+                            {/* Dynamic Category Selection */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Catégorie</label>
+                                <div className="flex flex-col gap-1">
+                                    <select
+                                        value={newProduct.category}
+                                        onChange={e => {
+                                            setNewProduct({ ...newProduct, category: e.target.value, subcategory: '' });
+                                        }}
+                                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                                    >
+                                        <option value="">Choisir...</option>
+                                        {categories.map(item => (
+                                            <option key={item.label} value={item.label}>{item.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Dynamic Subcategory Selection */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Sous-catégorie</label>
                                 <select
-                                    value={newProduct.category}
-                                    onChange={e => {
-                                        setNewProduct({ ...newProduct, category: e.target.value, subcategory: '' });
-                                    }}
+                                    value={newProduct.subcategory}
+                                    onChange={e => setNewProduct({ ...newProduct, subcategory: e.target.value })}
                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
+                                    disabled={availableSubcategories.length === 0}
                                 >
                                     <option value="">Choisir...</option>
-                                    {categories.map(item => (
-                                        <option key={item.label} value={item.label}>{item.label}</option>
+                                    {availableSubcategories.map((item: any) => (
+                                        <option key={item.display} value={item.label}>
+                                            {item.display}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
-                        </div>
 
-                        {/* Dynamic Subcategory Selection */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Sous-catégorie</label>
-                            <select
-                                value={newProduct.subcategory}
-                                onChange={e => setNewProduct({ ...newProduct, subcategory: e.target.value })}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white"
-                                disabled={availableSubcategories.length === 0}
-                            >
-                                <option value="">Choisir...</option>
-                                {availableSubcategories.map((item: any) => (
-                                    <option key={item.display} value={item.label}>
-                                        {item.display}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Aspect Ratio Selection */}
-                        <div className="space-y-2 md:col-span-2">
-                            <label className="text-sm font-medium text-gray-700">Format d'image (Ratio)</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {[
-                                    { value: 'portrait', label: 'Portrait (3:4)', desc: 'Idéal pour livres, vêtements' },
-                                    { value: 'square', label: 'Carré (1:1)', desc: 'Style Instagram, polyvalent' },
-                                    { value: 'landscape', label: 'Paysage (4:3)', desc: 'Pour objets larges, kits' }
-                                ].map((option) => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => setNewProduct({ ...newProduct, aspect_ratio: option.value })}
-                                        className={`p-3 rounded-lg border text-left transition-all ${newProduct.aspect_ratio === option.value
-                                            ? 'border-secondary bg-secondary/5 ring-1 ring-secondary'
-                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className="font-medium text-sm text-gray-900">{option.label}</div>
-                                        <div className="text-xs text-gray-500">{option.desc}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 md:col-span-2 border border-gray-200 p-4 rounded-xl bg-gray-50/50">
-                            <label className="text-sm font-bold text-gray-700 block mb-2">Galerie d'images</label>
-
-                            {/* Images Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                {newProduct.images && newProduct.images.length > 0 && newProduct.images.map((img: any, index: number) => (
-                                    <div key={index} className="relative group bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
-                                        <div className="aspect-square mb-2 relative overflow-hidden rounded-md">
-                                            <img
-                                                src={img.url}
-                                                alt={img.alt || 'Aperçu'}
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <div className="absolute top-1 left-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
-                                                {index === 0 ? 'Principal' : `#${index + 1}`}
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const newImages = [...newProduct.images];
-                                                    newImages.splice(index, 1);
-                                                    setNewProduct({ ...newProduct, images: newImages });
-                                                }}
-                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={img.alt}
-                                            onChange={(e) => {
-                                                const newImages = [...newProduct.images];
-                                                newImages[index].alt = e.target.value;
-                                                setNewProduct({ ...newProduct, images: newImages });
-                                            }}
-                                            className="w-full text-xs p-1 border border-gray-200 rounded focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
-                                            placeholder="Alt Text (SEO)"
-                                        />
-                                    </div>
-                                ))}
-
-                                {/* Upload Button */}
-                                <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                                    {uploading ? (
-                                        <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
-                                    ) : (
-                                        <Upload size={24} className="text-gray-400 mb-2" />
-                                    )}
-                                    <span className="text-xs text-gray-500 text-center px-2">
-                                        {uploading ? 'Envoi...' : 'Ajouter des photos'}
-                                    </span>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleImageUpload}
-                                        disabled={uploading}
-                                        className="hidden"
-                                    />
-                                </label>
+                            {/* Aspect Ratio Selection */}
+                            <div className="space-y-2 md:col-span-2">
+                                <label className="text-sm font-medium text-gray-700">Format d'image (Ratio)</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { value: 'portrait', label: 'Portrait (3:4)', desc: 'Idéal pour livres, vêtements' },
+                                        { value: 'square', label: 'Carré (1:1)', desc: 'Style Instagram, polyvalent' },
+                                        { value: 'landscape', label: 'Paysage (4:3)', desc: 'Pour objets larges, kits' }
+                                    ].map((option) => (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => setNewProduct({ ...newProduct, aspect_ratio: option.value })}
+                                            className={`p-3 rounded-lg border text-left transition-all ${newProduct.aspect_ratio === option.value
+                                                ? 'border-secondary bg-secondary/5 ring-1 ring-secondary'
+                                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <div className="font-medium text-sm text-gray-900">{option.label}</div>
+                                            <div className="text-xs text-gray-500">{option.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Legacy SEO Alt Text (Synced only for fallback display, real usage relies on the array above) */}
-                            <p className="text-xs text-gray-500 italic">
-                                * La première image sera l'image principale. Définissez le texte alternatif pour chaque image pour un meilleur SEO.
-                            </p>
+                            <div className="space-y-4 md:col-span-2 border border-gray-200 p-4 rounded-xl bg-gray-50/50">
+                                <label className="text-sm font-bold text-gray-700 block mb-2">Galerie d'images</label>
 
-                            {/* Variants Section */}
-                            <div className="pt-2 border-t border-gray-200 mt-4">
-                                <label className="text-sm font-bold text-gray-700 block mb-3">Variantes & Prix</label>
-
-                                {newProduct.variants && newProduct.variants.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {newProduct.variants.map((variant: any, idx: number) => (
-                                            <div key={idx} className="flex flex-wrap gap-3 items-end bg-white p-3 border border-gray-200 rounded-lg">
-                                                {/* Variant Image Upload */}
-                                                <label className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded border border-gray-200 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative group">
-                                                    {variant.image ? (
-                                                        <img src={variant.image} className="w-full h-full object-cover" alt="Variant" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Upload size={16} /></div>
-                                                    )}
-
-                                                    {/* Hover Overlay with Edit Icon */}
-                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <div className="bg-white/90 p-1 rounded-full shadow-sm">
-                                                            <Upload size={12} className="text-gray-700" />
-                                                        </div>
-                                                    </div>
-
-                                                    {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        className="hidden"
-                                                        onChange={(e) => handleVariantImageUpload(e, idx)}
-                                                    />
-                                                </label>
-
-                                                <div className="flex-1 min-w-[150px]">
-                                                    <label className="text-xs text-gray-500 font-bold uppercase">Nom (Couleur/Taille)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={variant.name}
-                                                        onChange={(e) => {
-                                                            const newVariants = [...newProduct.variants];
-                                                            newVariants[idx].name = e.target.value;
-                                                            setNewProduct({ ...newProduct, variants: newVariants });
-                                                        }}
-                                                        className="w-full p-1.5 border rounded text-sm font-medium"
-                                                        placeholder="Ex: Rouge"
-                                                    />
+                                {/* Images Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    {newProduct.images && newProduct.images.length > 0 && newProduct.images.map((img: any, index: number) => (
+                                        <div key={index} className="relative group bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+                                            <div className="aspect-square mb-2 relative overflow-hidden rounded-md">
+                                                <img
+                                                    src={img.url}
+                                                    alt={img.alt || 'Aperçu'}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute top-1 left-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                                    {index === 0 ? 'Principal' : `#${index + 1}`}
                                                 </div>
-
-                                                <div className="w-24">
-                                                    <label className="text-xs text-gray-500 font-bold uppercase">Prix ($)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={variant.selling_price || variant.price}
-                                                        onChange={(e) => {
-                                                            const newVariants = [...newProduct.variants];
-                                                            newVariants[idx].selling_price = e.target.value;
-                                                            setNewProduct({ ...newProduct, variants: newVariants });
-                                                        }}
-                                                        className="w-full p-1.5 border rounded text-sm text-green-700 font-bold"
-                                                        placeholder="0.00"
-                                                    />
-                                                </div>
-
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        const newVariants = newProduct.variants.filter((_, i) => i !== idx);
-                                                        setNewProduct({ ...newProduct, variants: newVariants });
+                                                        const newImages = [...newProduct.images];
+                                                        newImages.splice(index, 1);
+                                                        setNewProduct({ ...newProduct, images: newImages });
                                                     }}
-                                                    className="p-2 text-gray-400 hover:text-red-500"
+                                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
-                                                    <X size={18} />
+                                                    <X size={12} />
                                                 </button>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-sm text-gray-500 italic mb-2">Aucune variante configurée. Le produit utilisera le prix principal.</div>
-                                )}
+                                            <input
+                                                type="text"
+                                                value={img.alt}
+                                                onChange={(e) => {
+                                                    const newImages = [...newProduct.images];
+                                                    newImages[index].alt = e.target.value;
+                                                    setNewProduct({ ...newProduct, images: newImages });
+                                                }}
+                                                className="w-full text-xs p-1 border border-gray-200 rounded focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
+                                                placeholder="Alt Text (SEO)"
+                                            />
+                                        </div>
+                                    ))}
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setNewProduct({
-                                            ...newProduct,
-                                            variants: [...(newProduct.variants || []), { name: 'Nouvelle Option', price: newProduct.price, selling_price: newProduct.price, image: newProduct.images[0]?.url || '' }]
-                                        })
-                                    }}
-                                    className="mt-2 text-sm text-primary font-bold flex items-center gap-1 hover:underline"
-                                >
-                                    <Plus size={16} /> Ajouter une variante
-                                </button>
-                            </div>
+                                    {/* Upload Button */}
+                                    <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                        {uploading ? (
+                                            <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
+                                        ) : (
+                                            <Upload size={24} className="text-gray-400 mb-2" />
+                                        )}
+                                        <span className="text-xs text-gray-500 text-center px-2">
+                                            {uploading ? 'Envoi...' : 'Ajouter des photos'}
+                                        </span>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleImageUpload}
+                                            disabled={uploading}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
 
-                            {/* Customization Options Section */}
-                            <div className="pt-2 border-t border-gray-200 mt-4">
-                                <label className="text-sm font-bold text-gray-700 block mb-3">Options de Personnalisation (Client)</label>
-                                <p className="text-xs text-gray-500 mb-3">Ajoutez des champs que le client devra remplir (ex: Prénom, Choix de couleur).</p>
+                                {/* Legacy SEO Alt Text (Synced only for fallback display, real usage relies on the array above) */}
+                                <p className="text-xs text-gray-500 italic">
+                                    * La première image sera l'image principale. Définissez le texte alternatif pour chaque image pour un meilleur SEO.
+                                </p>
 
-                                {newProduct.customization_options && newProduct.customization_options.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {newProduct.customization_options.map((option, idx) => (
-                                            <div key={idx} className="bg-gray-50 p-3 border border-gray-200 rounded-lg space-y-3">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex-1 grid grid-cols-2 gap-3">
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500">Label (Question)</label>
-                                                            <input
-                                                                type="text"
-                                                                value={option.label}
-                                                                onChange={(e) => {
-                                                                    const newOpts = [...newProduct.customization_options];
-                                                                    newOpts[idx].label = e.target.value;
-                                                                    setNewProduct({ ...newProduct, customization_options: newOpts });
-                                                                }}
-                                                                className="w-full p-1.5 border rounded text-sm"
-                                                                placeholder="Ex: Prénom du bébé"
-                                                            />
+                                {/* Variants Section */}
+                                <div className="pt-2 border-t border-gray-200 mt-4">
+                                    <label className="text-sm font-bold text-gray-700 block mb-3">Variantes & Prix</label>
+
+                                    {newProduct.variants && newProduct.variants.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {newProduct.variants.map((variant: any, idx: number) => (
+                                                <div key={idx} className="flex flex-wrap gap-3 items-end bg-white p-3 border border-gray-200 rounded-lg">
+                                                    {/* Variant Image Upload */}
+                                                    <label className="w-12 h-12 flex-shrink-0 bg-gray-100 rounded border border-gray-200 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative group">
+                                                        {variant.image ? (
+                                                            <img src={variant.image} className="w-full h-full object-cover" alt="Variant" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-300"><Upload size={16} /></div>
+                                                        )}
+
+                                                        {/* Hover Overlay with Edit Icon */}
+                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="bg-white/90 p-1 rounded-full shadow-sm">
+                                                                <Upload size={12} className="text-gray-700" />
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <label className="text-xs font-bold text-gray-500">Type de champ</label>
-                                                            <select
-                                                                value={option.type}
-                                                                onChange={(e) => {
-                                                                    const newOpts = [...newProduct.customization_options];
-                                                                    newOpts[idx].type = e.target.value as 'text' | 'select';
-                                                                    setNewProduct({ ...newProduct, customization_options: newOpts });
-                                                                }}
-                                                                className="w-full p-1.5 border rounded text-sm"
-                                                            >
-                                                                <option value="text">Texte libre</option>
-                                                                <option value="select">Liste déroulante</option>
-                                                                <option value="file">Fichier / Image (Client)</option>
-                                                            </select>
-                                                        </div>
+
+                                                        {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(e) => handleVariantImageUpload(e, idx)}
+                                                        />
+                                                    </label>
+
+                                                    <div className="flex-1 min-w-[150px]">
+                                                        <label className="text-xs text-gray-500 font-bold uppercase">Nom (Couleur/Taille)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={variant.name}
+                                                            onChange={(e) => {
+                                                                const newVariants = [...newProduct.variants];
+                                                                newVariants[idx].name = e.target.value;
+                                                                setNewProduct({ ...newProduct, variants: newVariants });
+                                                            }}
+                                                            className="w-full p-1.5 border rounded text-sm font-medium"
+                                                            placeholder="Ex: Rouge"
+                                                        />
                                                     </div>
+
+                                                    <div className="w-24">
+                                                        <label className="text-xs text-gray-500 font-bold uppercase">Prix ($)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={variant.selling_price || variant.price}
+                                                            onChange={(e) => {
+                                                                const newVariants = [...newProduct.variants];
+                                                                newVariants[idx].selling_price = e.target.value;
+                                                                setNewProduct({ ...newProduct, variants: newVariants });
+                                                            }}
+                                                            className="w-full p-1.5 border rounded text-sm text-green-700 font-bold"
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            const newOpts = newProduct.customization_options.filter((_, i) => i !== idx);
-                                                            setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                            const newVariants = newProduct.variants.filter((_, i) => i !== idx);
+                                                            setNewProduct({ ...newProduct, variants: newVariants });
                                                         }}
-                                                        className="ml-2 text-gray-400 hover:text-red-500"
+                                                        className="p-2 text-gray-400 hover:text-red-500"
                                                     >
                                                         <X size={18} />
                                                     </button>
                                                 </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 italic mb-2">Aucune variante configurée. Le produit utilisera le prix principal.</div>
+                                    )}
 
-                                                {/* Options for Select Type */}
-                                                {option.type === 'select' && (
-                                                    <div>
-                                                        <label className="text-xs font-bold text-gray-500">Options (séparées par virgule)</label>
-                                                        <input
-                                                            type="text"
-                                                            value={option.options?.join(', ')}
-                                                            onChange={(e) => {
-                                                                const newOpts = [...newProduct.customization_options];
-                                                                newOpts[idx].options = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNewProduct({
+                                                ...newProduct,
+                                                variants: [...(newProduct.variants || []), { name: 'Nouvelle Option', price: newProduct.price, selling_price: newProduct.price, image: newProduct.images[0]?.url || '' }]
+                                            })
+                                        }}
+                                        className="mt-2 text-sm text-primary font-bold flex items-center gap-1 hover:underline"
+                                    >
+                                        <Plus size={16} /> Ajouter une variante
+                                    </button>
+                                </div>
+
+                                {/* Customization Options Section */}
+                                <div className="pt-2 border-t border-gray-200 mt-4">
+                                    <label className="text-sm font-bold text-gray-700 block mb-3">Options de Personnalisation (Client)</label>
+                                    <p className="text-xs text-gray-500 mb-3">Ajoutez des champs que le client devra remplir (ex: Prénom, Choix de couleur).</p>
+
+                                    {newProduct.customization_options && newProduct.customization_options.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {newProduct.customization_options.map((option, idx) => (
+                                                <div key={idx} className="bg-gray-50 p-3 border border-gray-200 rounded-lg space-y-3">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1 grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="text-xs font-bold text-gray-500">Label (Question)</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={option.label}
+                                                                    onChange={(e) => {
+                                                                        const newOpts = [...newProduct.customization_options];
+                                                                        newOpts[idx].label = e.target.value;
+                                                                        setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                                    }}
+                                                                    className="w-full p-1.5 border rounded text-sm"
+                                                                    placeholder="Ex: Prénom du bébé"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs font-bold text-gray-500">Type de champ</label>
+                                                                <select
+                                                                    value={option.type}
+                                                                    onChange={(e) => {
+                                                                        const newOpts = [...newProduct.customization_options];
+                                                                        newOpts[idx].type = e.target.value as 'text' | 'select';
+                                                                        setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                                    }}
+                                                                    className="w-full p-1.5 border rounded text-sm"
+                                                                >
+                                                                    <option value="text">Texte libre</option>
+                                                                    <option value="select">Liste déroulante</option>
+                                                                    <option value="file">Fichier / Image (Client)</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newOpts = newProduct.customization_options.filter((_, i) => i !== idx);
                                                                 setNewProduct({ ...newProduct, customization_options: newOpts });
                                                             }}
-                                                            className="w-full p-1.5 border rounded text-sm"
-                                                            placeholder="Ex: Rouge, Bleu, Vert"
-                                                        />
+                                                            className="ml-2 text-gray-400 hover:text-red-500"
+                                                        >
+                                                            <X size={18} />
+                                                        </button>
                                                     </div>
-                                                )}
 
-                                                <label className="flex items-center gap-2 text-xs text-gray-600">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={option.required}
-                                                        onChange={(e) => {
-                                                            const newOpts = [...newProduct.customization_options];
-                                                            newOpts[idx].required = e.target.checked;
-                                                            setNewProduct({ ...newProduct, customization_options: newOpts });
-                                                        }}
-                                                        className="rounded text-green-600 focus:ring-green-500"
-                                                    />
-                                                    Champ obligatoire
-                                                </label>
-                                            </div>
-                                        ))}
+                                                    {/* Options for Select Type */}
+                                                    {option.type === 'select' && (
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-500">Options (séparées par virgule)</label>
+                                                            <input
+                                                                type="text"
+                                                                value={option.options?.join(', ')}
+                                                                onChange={(e) => {
+                                                                    const newOpts = [...newProduct.customization_options];
+                                                                    newOpts[idx].options = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                                                                    setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                                }}
+                                                                className="w-full p-1.5 border rounded text-sm"
+                                                                placeholder="Ex: Rouge, Bleu, Vert"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={option.required}
+                                                            onChange={(e) => {
+                                                                const newOpts = [...newProduct.customization_options];
+                                                                newOpts[idx].required = e.target.checked;
+                                                                setNewProduct({ ...newProduct, customization_options: newOpts });
+                                                            }}
+                                                            className="rounded text-green-600 focus:ring-green-500"
+                                                        />
+                                                        Champ obligatoire
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 italic mb-2">Aucune option de personnalisation.</div>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNewProduct({
+                                                ...newProduct,
+                                                customization_options: [
+                                                    ...(newProduct.customization_options || []),
+                                                    { id: crypto.randomUUID(), type: 'text', label: '', required: true, options: [] }
+                                                ]
+                                            })
+                                        }}
+                                        className="mt-2 text-sm text-blue-600 font-bold flex items-center gap-1 hover:underline"
+                                    >
+                                        <Plus size={16} /> Ajouter un champ
+                                    </button>
+                                </div>
+
+                                <div className="pt-2 border-t border-gray-200 mt-4">
+                                    <label className="text-sm font-medium text-gray-700 flex justify-between">
+                                        Description détaillée
+                                        <span className="text-xs text-secondary font-normal">Pour vos clients</span>
+                                    </label>
+                                    <div className="quill-editor-container bg-white rounded-lg">
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={newProduct.description}
+                                            onChange={(value) => setNewProduct({ ...newProduct, description: value })}
+                                            modules={modules}
+                                            formats={formats}
+                                            className="min-h-[200px]"
+                                            placeholder="Racontez l'histoire de ce produit... (Vous pouvez mettre en forme le texte et ajouter des liens)"
+                                        />
                                     </div>
-                                ) : (
-                                    <div className="text-sm text-gray-500 italic mb-2">Aucune option de personnalisation.</div>
-                                )}
+                                </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setNewProduct({
-                                            ...newProduct,
-                                            customization_options: [
-                                                ...(newProduct.customization_options || []),
-                                                { id: crypto.randomUUID(), type: 'text', label: '', required: true, options: [] }
-                                            ]
-                                        })
-                                    }}
-                                    className="mt-2 text-sm text-blue-600 font-bold flex items-center gap-1 hover:underline"
-                                >
-                                    <Plus size={16} /> Ajouter un champ
-                                </button>
-                            </div>
+                                {/* Digital Files Section (Ebooks) */}
+                                <div className="pt-2 border-t border-gray-200 mt-4">
+                                    <label className="text-sm font-bold text-gray-700 block mb-3">Fichiers Numériques (E-books / PDF)</label>
+                                    <p className="text-xs text-gray-500 mb-3">Ces fichiers seront envoyés au client après l'achat.</p>
 
-                            <div className="pt-2 border-t border-gray-200 mt-4">
-                                <label className="text-sm font-medium text-gray-700 flex justify-between">
-                                    Description détaillée
-                                    <span className="text-xs text-secondary font-normal">Pour vos clients</span>
-                                </label>
-                                <div className="quill-editor-container bg-white rounded-lg">
-                                    <ReactQuill
-                                        theme="snow"
-                                        value={newProduct.description}
-                                        onChange={(value) => setNewProduct({ ...newProduct, description: value })}
-                                        modules={modules}
-                                        formats={formats}
-                                        className="min-h-[200px]"
-                                        placeholder="Racontez l'histoire de ce produit... (Vous pouvez mettre en forme le texte et ajouter des liens)"
-                                    />
+                                    {newProduct.digital_files && newProduct.digital_files.length > 0 && (
+                                        <div className="space-y-2 mb-3">
+                                            {newProduct.digital_files.map((file, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-blue-50 p-2 rounded border border-blue-100">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <div className="p-1 bg-white rounded shadow-sm text-xs font-bold uppercase">{file.type}</div>
+                                                        <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newFiles = newProduct.digital_files.filter((_, i) => i !== idx);
+                                                            setNewProduct({ ...newProduct, digital_files: newFiles });
+                                                        }}
+                                                        className="text-gray-400 hover:text-red-500"
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <label className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors w-fit">
+                                        <Upload size={16} className="text-gray-500" />
+                                        <span className="text-sm font-medium text-gray-700">Uploader un fichier</span>
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.epub,.mobi,.zip"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                if (!e.target.files || e.target.files.length === 0) return;
+                                                try {
+                                                    setUploading(true);
+                                                    const file = e.target.files[0];
+                                                    const fileExt = file.name.split('.').pop();
+                                                    const fileName = `digital/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+                                                    const { error: uploadError } = await supabase.storage
+                                                        .from('product-images') // Re-using bucket for now, ideally 'digital-products' secure bucket
+                                                        .upload(fileName, file);
+
+                                                    if (uploadError) throw uploadError;
+
+                                                    const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
+
+                                                    setNewProduct({
+                                                        ...newProduct,
+                                                        digital_files: [...newProduct.digital_files, { name: file.name, url: data.publicUrl, type: fileExt || 'file' }]
+                                                    });
+                                                } catch (err: any) {
+                                                    alert("Erreur upload: " + err.message);
+                                                } finally {
+                                                    setUploading(false);
+                                                }
+                                            }}
+                                        />
+                                    </label>
                                 </div>
                             </div>
 
-                            {/* Digital Files Section (Ebooks) */}
-                            <div className="pt-2 border-t border-gray-200 mt-4">
-                                <label className="text-sm font-bold text-gray-700 block mb-3">Fichiers Numériques (E-books / PDF)</label>
-                                <p className="text-xs text-gray-500 mb-3">Ces fichiers seront envoyés au client après l'achat.</p>
-
-                                {newProduct.digital_files && newProduct.digital_files.length > 0 && (
-                                    <div className="space-y-2 mb-3">
-                                        {newProduct.digital_files.map((file, idx) => (
-                                            <div key={idx} className="flex items-center justify-between bg-blue-50 p-2 rounded border border-blue-100">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <div className="p-1 bg-white rounded shadow-sm text-xs font-bold uppercase">{file.type}</div>
-                                                    <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newFiles = newProduct.digital_files.filter((_, i) => i !== idx);
-                                                        setNewProduct({ ...newProduct, digital_files: newFiles });
-                                                    }}
-                                                    className="text-gray-400 hover:text-red-500"
-                                                >
-                                                    <X size={16} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                <label className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors w-fit">
-                                    <Upload size={16} className="text-gray-500" />
-                                    <span className="text-sm font-medium text-gray-700">Uploader un fichier</span>
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.epub,.mobi,.zip"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                            if (!e.target.files || e.target.files.length === 0) return;
-                                            try {
-                                                setUploading(true);
-                                                const file = e.target.files[0];
-                                                const fileExt = file.name.split('.').pop();
-                                                const fileName = `digital/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-
-                                                const { error: uploadError } = await supabase.storage
-                                                    .from('product-images') // Re-using bucket for now, ideally 'digital-products' secure bucket
-                                                    .upload(fileName, file);
-
-                                                if (uploadError) throw uploadError;
-
-                                                const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
-
-                                                setNewProduct({
-                                                    ...newProduct,
-                                                    digital_files: [...newProduct.digital_files, { name: file.name, url: data.publicUrl, type: fileExt || 'file' }]
-                                                });
-                                            } catch (err: any) {
-                                                alert("Erreur upload: " + err.message);
-                                            } finally {
-                                                setUploading(false);
-                                            }
-                                        }}
-                                    />
-                                </label>
+                            <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2 bg-secondary text-white rounded-lg font-bold hover:bg-secondary/90 transition-colors"
+                                >
+                                    {editingId ? 'Mettre à jour' : 'Enregistrer'}
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-6 py-2 bg-secondary text-white rounded-lg font-bold hover:bg-secondary/90 transition-colors"
-                            >
-                                {editingId ? 'Mettre à jour' : 'Enregistrer'}
-                            </button>
-                        </div>
-                    </form >
-                </div >
-            )
-            }
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Product List Table */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

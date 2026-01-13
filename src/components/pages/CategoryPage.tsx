@@ -24,8 +24,10 @@ export function CategoryPage() {
                 // Determine Category Label dynamically
                 let categoryLabel = '';
 
+                const normalizedSlug = categorySlug?.toLowerCase();
+
                 // 1. Try to find category in menu_items matching the slug
-                if (categorySlug && categorySlug !== 'soldes') {
+                if (categorySlug && normalizedSlug !== 'soldes') {
                     try {
                         let categoryFound = false;
 
@@ -91,7 +93,7 @@ export function CategoryPage() {
                 // 2. Fetch Products
                 let query = supabase.from('products').select('*');
 
-                if (categorySlug === 'soldes') {
+                if (normalizedSlug === 'soldes') {
                     // Filter for products where sale_price is not null and greater than 0
                     query = query.not('sale_price', 'is', null).gt('sale_price', 0);
                 } else if (categoryLabel) {
@@ -139,9 +141,15 @@ export function CategoryPage() {
         fetchProducts();
     }, [categorySlug, targetSlug]);
 
-    const title = products.length > 0 && products[0].category
-        ? `${products[0].category} ${targetSlug ? '- ' + products[0].subcategory : ''}`
-        : "Notre Collection";
+    const normalizedSlug = categorySlug?.toLowerCase();
+
+    // DEBUG LOG
+    console.log('DEBUG CATEGORY:', { categorySlug, normalizedSlug, productsCount: products.length });
+
+    const title = normalizedSlug === 'soldes' ? 'Soldes' :
+        (products.length > 0 && products[0].category
+            ? `${products[0].category} ${targetSlug ? '- ' + products[0].subcategory : ''}`
+            : "Notre Collection");
 
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
