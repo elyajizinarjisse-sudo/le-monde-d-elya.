@@ -11,8 +11,6 @@ export function CategoryPage() {
     const subcategorySlug = rawSubcategorySlug ? decodeURIComponent(rawSubcategorySlug) : undefined;
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    // DEBUG STATE
-    const [debugInfo, setDebugInfo] = useState<any>({});
 
     // Handle potential typos or translation artifacts from URL
     let targetSlug = subcategorySlug;
@@ -22,7 +20,6 @@ export function CategoryPage() {
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
-            let debug: { slug: string | undefined; step: string; label: string; found: number; strategy: string; error?: string } = { slug: categorySlug, step: 'Start', label: '', found: 0, strategy: 'none' };
             try {
                 // Determine Category Label dynamically
                 let categoryLabel = '';
@@ -42,9 +39,7 @@ export function CategoryPage() {
 
                         if (labelData && labelData.length > 0) {
                             categoryLabel = labelData[0].label;
-                            targetSlug = undefined;
-                            debug.strategy = 'Exact Label Match';
-                            debug.label = categoryLabel;
+                            currentTargetSlug = undefined; // If a direct label match is found, no need for subcategory filtering
                             categoryFound = true;
                         }
 
@@ -58,9 +53,7 @@ export function CategoryPage() {
 
                             if (pathData && pathData.length > 0) {
                                 categoryLabel = pathData[0].label;
-                                targetSlug = undefined;
-                                debug.strategy = 'Exact Path Match';
-                                debug.label = categoryLabel;
+                                currentTargetSlug = undefined; // If a direct path match is found, no need for subcategory filtering
                                 categoryFound = true;
                             }
                         }
@@ -82,21 +75,16 @@ export function CategoryPage() {
 
                             if (menuData && menuData.length > 0) {
                                 categoryLabel = menuData[0].label;
-                                targetSlug = undefined;
-                                debug.strategy = 'Path Suffix Match';
-                                debug.label = categoryLabel;
+                                currentTargetSlug = undefined; // If a menu item is found, no need for subcategory filtering
                             } else {
                                 // Final Fallback: Capitalize
                                 categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
                                 if (categorySlug.toLowerCase() === 'ebook') categoryLabel = 'E-book';
-                                debug.strategy = 'Capitalization Fallback';
-                                debug.label = categoryLabel;
                             }
                         }
                     } catch (err: any) {
                         console.error("Menu fetch error:", err);
                         categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-                        debug.error = err.message;
                     }
                 }
 
@@ -116,14 +104,12 @@ export function CategoryPage() {
 
                 if (data && data.length > 0) {
                     let filtered = data;
-                    // Only apply local filtering if we DIDN'T find a specific menu match (targetSlug is still set)
-                    if (targetSlug) {
+                    // Only apply local filtering if we DIDN'T find a specific menu match (currentTargetSlug is still set)
+                    if (currentTargetSlug) {
                         const normalize = (str: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-') : '';
-                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(targetSlug!));
+                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(currentTargetSlug!));
                     }
                     setProducts(filtered);
-                    debug.found = filtered.length;
-                    setDebugInfo(debug);
                 } else {
                     // Try loose match if exact label failed (e.g. user typed "Broderie" but DB has "broderie")
                     if (categorySlug && !categoryLabel) {
@@ -133,22 +119,17 @@ export function CategoryPage() {
                                 p.category && p.category.toLowerCase().includes(categorySlug!.toLowerCase())
                             );
                             setProducts(filtered);
-                            debug.strategy = 'Loose Match (No Label)';
-                            debug.found = filtered.length;
                         } else {
                             setProducts([]);
                         }
                     } else {
                         setProducts([]);
-                        debug.found = 0;
                     }
-                    setDebugInfo(debug);
                 }
 
             } catch (err: any) {
                 console.error(err);
                 setProducts([]);
-                setDebugInfo({ ...debug, error: err.message });
             } finally {
                 setIsLoading(false);
             }
@@ -175,18 +156,6 @@ export function CategoryPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 font-cursive mb-8 text-center">
                 {title}
             </h1>
-
-            {/* DEBUGGER */}
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded shadow-sm">
-                <p className="font-bold">🔧 Diagnostic Rapide (Sera retiré après test)</p>
-                <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-                    <p>Slug URL: <span className="font-mono bg-white px-1">{debugInfo.slug}</span></p>
-                    <p>Label Déduit: <span className="font-mono bg-white px-1">{debugInfo.label || 'N/A'}</span></p>
-                    <p>Stratégie: <span className="font-mono bg-white px-1">{debugInfo.strategy}</span></p>
-                    <p>Produits: <span className="font-mono bg-white px-1">{debugInfo.found}</span></p>
-                    {debugInfo.error && <p className="text-red-500 col-span-2">Erreur: {debugInfo.error}</p>}
-                </div>
-            </div>
 
             {isLoading ? (
                 <div className="text-center py-20"><p>Chargement des trésors...</p></div>
