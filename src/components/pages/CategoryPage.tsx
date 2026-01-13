@@ -92,7 +92,8 @@ export function CategoryPage() {
                 let query = supabase.from('products').select('*');
 
                 if (categorySlug === 'soldes') {
-                    // query = query.eq('is_sale', true); 
+                    // Filter for products where sale_price is not null and greater than 0
+                    query = query.not('sale_price', 'is', null).gt('sale_price', 0);
                 } else if (categoryLabel) {
                     // Search in both 'category' and 'subcategory' using ILIKE for case-insensitive matching
                     // syntax: column.ilike.value

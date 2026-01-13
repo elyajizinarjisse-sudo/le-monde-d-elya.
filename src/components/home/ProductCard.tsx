@@ -7,12 +7,13 @@ export interface Product {
     title: string;
     author?: string; // or brand
     price: number;
-    originalPrice?: number;
+    sale_price?: number; // NEW
+    originalPrice?: number; // Legacy support
     image: string;
     rating: number;
     reviews: number;
     isNew?: boolean;
-    isSale?: boolean;
+    isSale?: boolean; // Legacy support
     category?: string;
     subcategory?: string;
     aspect_ratio?: 'portrait' | 'square' | 'landscape';
@@ -28,6 +29,15 @@ export function ProductCard({ product }: ProductCardProps) {
         product.aspect_ratio === 'landscape' ? 'aspect-[4/3]' :
             'aspect-[2/3]'; // Default portrait
 
+    // Determine Sale State
+    // We check either the new 'sale_price' column OR the legacy 'isSale' flag
+    const hasSalePrice = product.sale_price && product.sale_price > 0 && product.sale_price < product.price;
+    const isOnSale = hasSalePrice || product.isSale;
+
+    // Determine Display Prices
+    const displayPrice = hasSalePrice ? product.sale_price : product.price;
+    const originalPrice = hasSalePrice ? product.price : product.originalPrice;
+
     return (
         <Link to={`/product/${product.id}`} className="group flex flex-col items-start w-[180px] md:w-[220px] flex-shrink-0 cursor-pointer">
             {/* Image Container */}
@@ -38,10 +48,10 @@ export function ProductCard({ product }: ProductCardProps) {
                     className="w-full h-full object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
                 />
                 {/* Badges */}
-                {(product.isNew || product.isSale) && (
+                {(product.isNew || isOnSale) && (
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
                         {product.isNew && <span className="bg-white text-indigo-900 text-[10px] font-bold px-2 py-1 uppercase tracking-wider shadow-sm">Nouveau</span>}
-                        {product.isSale && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider shadow-sm">Solde</span>}
+                        {isOnSale && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider shadow-sm">Solde</span>}
                     </div>
                 )}
                 {/* Wishlist Button */}
@@ -87,13 +97,13 @@ export function ProductCard({ product }: ProductCardProps) {
 
                 {/* Price */}
                 <div className="mt-2 text-sm font-bold text-primary">
-                    {product.isSale && product.originalPrice ? (
+                    {isOnSale && originalPrice ? (
                         <div className="flex items-center gap-2">
-                            <span className="text-primary">{formatPrice(product.price)}</span>
-                            <span className="text-gray-400 line-through text-xs font-normal">{formatPrice(product.originalPrice)}</span>
+                            <span className="text-red-600">{formatPrice(displayPrice!)}</span>
+                            <span className="text-gray-400 line-through text-xs font-normal">{formatPrice(originalPrice)}</span>
                         </div>
                     ) : (
-                        <span>{formatPrice(product.price)}</span>
+                        <span>{formatPrice(displayPrice!)}</span>
                     )}
                 </div>
             </div>
