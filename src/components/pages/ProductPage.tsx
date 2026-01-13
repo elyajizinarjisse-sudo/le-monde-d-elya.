@@ -610,141 +610,144 @@ export function ProductPage() {
                                                         className="absolute inset-0 w-full h-full object-contain z-10"
                                                     />
 
-                                                    {/* Customization Overlay Area - Removed overflow-hidden to allow images to exceed zone if needed */}
-                                                    <div
-                                                        className="absolute z-20 flex items-center justify-center pointer-events-none"
-                                                        style={{
-                                                            ...previewConfig.style,
-                                                        }}
-                                                    >
-                                                        {/* Pointer Events Wrapper for Interaction */}
+                                                    {/* Customization Overlay Area - Only show on Front view for Casquettes to avoid ghosting */}
+                                                    {((getSafeString(product.id) !== '15' && getSafeString(product.id) !== '16') || currentView === 'front') && (
                                                         <div
-                                                            ref={containerRef}
-                                                            className="relative w-full h-full pointer-events-auto cursor-crosshair" // Cursor indicates interactive area
-                                                            onMouseMove={handleMouseMove}
-                                                            onMouseUp={handleMouseUp}
-                                                            onMouseLeave={handleMouseUp} // Stop drag if leaving container
+                                                            className="absolute z-20 flex items-center justify-center pointer-events-none"
+                                                            style={{
+                                                                ...previewConfig.style,
+                                                            }}
                                                         >
+                                                            {/* Pointer Events Wrapper for Interaction */}
+                                                            <div
+                                                                ref={containerRef}
+                                                                className="relative w-full h-full pointer-events-auto cursor-crosshair" // Cursor indicates interactive area
+                                                                onMouseMove={handleMouseMove}
+                                                                onMouseUp={handleMouseUp}
+                                                                onMouseLeave={handleMouseUp} // Stop drag if leaving container
+                                                            >
 
-                                                            {/* Image Layer */}
-                                                            {Object.entries(customizationValues).map(([key, value]) => {
-                                                                if (!value || !value.startsWith('http')) return null;
+                                                                {/* Image Layer */}
+                                                                {Object.entries(customizationValues).map(([key, value]) => {
+                                                                    if (!value || !value.startsWith('http')) return null;
 
-                                                                return (
-                                                                    <div
-                                                                        key={key}
-                                                                        className="absolute origin-center cursor-move hover:border hover:border-dashed hover:border-indigo-400"
-                                                                        style={{
-                                                                            top: `${imagePosition.y}%`,
-                                                                            left: `${imagePosition.x}%`,
-                                                                            width: '50%', // Fixed base width relative to zone
-                                                                            transform: `translate(-50%, -50%) scale(${imageScale})`, // Zoom via transform
-                                                                            zIndex: 10,
-                                                                        }}
-                                                                        onMouseDown={(e) => handleMouseDown(e, 'image')}
-                                                                    >
-                                                                        <img
-                                                                            src={value}
-                                                                            alt="Logo"
-                                                                            className="w-full h-auto object-contain pointer-events-none"
-                                                                        />
-                                                                    </div>
-                                                                );
-                                                            })}
+                                                                    return (
+                                                                        <div
+                                                                            key={key}
+                                                                            className="absolute origin-center cursor-move hover:border hover:border-dashed hover:border-indigo-400"
+                                                                            style={{
+                                                                                top: `${imagePosition.y}%`,
+                                                                                left: `${imagePosition.x}%`,
+                                                                                width: '50%', // Fixed base width relative to zone
+                                                                                transform: `translate(-50%, -50%) scale(${imageScale})`, // Zoom via transform
+                                                                                zIndex: 10,
+                                                                            }}
+                                                                            onMouseDown={(e) => handleMouseDown(e, 'image')}
+                                                                        >
+                                                                            <img
+                                                                                src={value}
+                                                                                alt="Logo"
+                                                                                className="w-full h-auto object-contain pointer-events-none"
+                                                                            />
+                                                                        </div>
+                                                                    );
+                                                                })}
 
-                                                            {/* Text Layer */}
-                                                            {(() => {
-                                                                const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
-                                                                    if (!value) return false;
-                                                                    const k = key.toLowerCase();
-                                                                    const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
-                                                                    if (isExcluded) return false;
-                                                                    const option = product.customization_options?.find(o => getSafeString(o.label) === key);
-                                                                    if (option && option.type !== 'text') return false;
-                                                                    return true;
-                                                                });
+                                                                {/* Text Layer */}
+                                                                {(() => {
+                                                                    const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
+                                                                        if (!value) return false;
+                                                                        const k = key.toLowerCase();
+                                                                        const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
+                                                                        if (isExcluded) return false;
+                                                                        const option = product.customization_options?.find(o => getSafeString(o.label) === key);
+                                                                        if (option && option.type !== 'text') return false;
+                                                                        return true;
+                                                                    });
 
-                                                                return (
-                                                                    <>
-                                                                        {validTextEntries.length === 0 && (
-                                                                            <div
-                                                                                className="absolute transform -translate-x-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-sm border border-gray-300 rounded px-2 py-1 flex items-center justify-center pointer-events-none"
-                                                                                style={{
-                                                                                    top: `${textPosition.y}%`,
-                                                                                    left: `${textPosition.x}%`,
-                                                                                    minWidth: '80px',
-                                                                                    zIndex: 5
-                                                                                }}
-                                                                            >
-                                                                                <span className="text-[10px] text-gray-600 font-bold uppercase opacity-70">Zone Texte</span>
-                                                                            </div>
-                                                                        )}
-
-                                                                        {validTextEntries.map(([key, value]) => {
-                                                                            // Font Logic
-                                                                            const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
-                                                                            const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
-                                                                            let fontFamily = "inherit";
-                                                                            let fontWeight = "normal";
-
-                                                                            const f = selectedFont?.toLowerCase() || "";
-
-                                                                            // Mapping for French ("bâton", "cursif", "manuscrit") AND English ("Modern Sans", "Classic Serif", "Handwritten", "Bold Impact")
-                                                                            if (f.includes("cursif") || f.includes("great vibes") || f.includes("cursive")) {
-                                                                                fontFamily = "'Great Vibes', cursive";
-                                                                            } else if (f.includes("bâton") || f.includes("modern sans") || f.includes("sans")) {
-                                                                                fontFamily = "'Roboto', sans-serif";
-                                                                            } else if (f.includes("manuscrit") || f.includes("handwritten") || f.includes("handlee")) {
-                                                                                fontFamily = "'Handlee', cursive";
-                                                                            } else if (f.includes("serif") || f.includes("classic")) {
-                                                                                fontFamily = "'Times New Roman', serif";
-                                                                            } else if (f.includes("bold") || f.includes("impact")) {
-                                                                                fontFamily = "'Impact', sans-serif";
-                                                                                fontWeight = "bold";
-                                                                            }
-
-                                                                            // Color Logic
-                                                                            const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
-                                                                            const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
-                                                                            const colorMap: Record<string, string> = {
-                                                                                "Noir": "black", "Black": "black",
-                                                                                "Blanc": "white", "White": "white",
-                                                                                "Rouge": "#D32F2F", "Red": "#D32F2F",
-                                                                                "Bleu Marine": "#1A237E", "Bleu Marin": "#1A237E", "Navy": "#1A237E",
-                                                                                "Or": "#FFD700", "Gold": "#FFD700",
-                                                                                "Argent": "#C0C0C0", "Silver": "#C0C0C0",
-                                                                                "Rose": "#E91E63", "Rose Pâle": "#FFB6C1", "Pink": "#E91E63",
-                                                                                "Bleu": "#1E88E5", "Blue": "#1E88E5",
-                                                                                "Vert": "#43A047", "Green": "#43A047",
-                                                                                "Chocolat": "#5D4037", "Chocolate": "#5D4037",
-                                                                                "Violet": "#9C27B0", "Purple": "#9C27B0",
-                                                                                "Jaune": "#FFD600", "Yellow": "#FFD600" // Using a slightly deeper yellow for visibility
-                                                                            };
-                                                                            const cssColor = colorMap[selectedColor] || selectedColor;
-
-                                                                            return (
+                                                                    return (
+                                                                        <>
+                                                                            {validTextEntries.length === 0 && (
                                                                                 <div
-                                                                                    key={key}
-                                                                                    className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-pre shadow-sm border border-transparent hover:border-dashed hover:border-indigo-400 cursor-move"
+                                                                                    className="absolute transform -translate-x-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-sm border border-gray-300 rounded px-2 py-1 flex items-center justify-center pointer-events-none"
                                                                                     style={{
                                                                                         top: `${textPosition.y}%`,
                                                                                         left: `${textPosition.x}%`,
-                                                                                        zIndex: 50, // Explicit Z-Index VERY HIGH
-                                                                                        transform: `translate(-50%, -50%) scale(${textScale})` // Text Scale
+                                                                                        minWidth: '80px',
+                                                                                        zIndex: 5
                                                                                     }}
-                                                                                    onMouseDown={(e) => handleMouseDown(e, 'text')}
                                                                                 >
-                                                                                    <span style={{ fontFamily, fontWeight, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center' }}>
-                                                                                        {value}
-                                                                                    </span>
+                                                                                    <span className="text-[10px] text-gray-600 font-bold uppercase opacity-70">Zone Texte</span>
                                                                                 </div>
-                                                                            );
-                                                                        })}
-                                                                    </>
-                                                                );
-                                                            })()}
-                                                        </div >
-                                                    </div>
+                                                                            )}
+
+                                                                            {validTextEntries.map(([key, value]) => {
+                                                                                // Font Logic
+                                                                                const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
+                                                                                let fontFamily = "inherit";
+                                                                                let fontWeight = "normal";
+
+                                                                                const f = selectedFont?.toLowerCase() || "";
+
+                                                                                // Mapping for French ("bâton", "cursif", "manuscrit") AND English ("Modern Sans", "Classic Serif", "Handwritten", "Bold Impact")
+                                                                                if (f.includes("cursif") || f.includes("great vibes") || f.includes("cursive")) {
+                                                                                    fontFamily = "'Great Vibes', cursive";
+                                                                                } else if (f.includes("bâton") || f.includes("modern sans") || f.includes("sans")) {
+                                                                                    fontFamily = "'Roboto', sans-serif";
+                                                                                } else if (f.includes("manuscrit") || f.includes("handwritten") || f.includes("handlee")) {
+                                                                                    fontFamily = "'Handlee', cursive";
+                                                                                } else if (f.includes("serif") || f.includes("classic")) {
+                                                                                    fontFamily = "'Times New Roman', serif";
+                                                                                } else if (f.includes("bold") || f.includes("impact")) {
+                                                                                    fontFamily = "'Impact', sans-serif";
+                                                                                    fontWeight = "bold";
+                                                                                }
+
+                                                                                // Color Logic
+                                                                                const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
+                                                                                const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
+                                                                                const colorMap: Record<string, string> = {
+                                                                                    "Noir": "black", "Black": "black",
+                                                                                    "Blanc": "white", "White": "white",
+                                                                                    "Rouge": "#D32F2F", "Red": "#D32F2F",
+                                                                                    "Bleu Marine": "#1A237E", "Bleu Marin": "#1A237E", "Navy": "#1A237E",
+                                                                                    "Or": "#FFD700", "Gold": "#FFD700",
+                                                                                    "Argent": "#C0C0C0", "Silver": "#C0C0C0",
+                                                                                    "Rose": "#E91E63", "Rose Pâle": "#FFB6C1", "Pink": "#E91E63",
+                                                                                    "Bleu": "#1E88E5", "Blue": "#1E88E5",
+                                                                                    "Vert": "#43A047", "Green": "#43A047",
+                                                                                    "Chocolat": "#5D4037", "Chocolate": "#5D4037",
+                                                                                    "Violet": "#9C27B0", "Purple": "#9C27B0",
+                                                                                    "Jaune": "#FFD600", "Yellow": "#FFD600" // Using a slightly deeper yellow for visibility
+                                                                                };
+                                                                                const cssColor = colorMap[selectedColor] || selectedColor;
+
+                                                                                return (
+                                                                                    <div
+                                                                                        key={key}
+                                                                                        className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-pre shadow-sm border border-transparent hover:border-dashed hover:border-indigo-400 cursor-move"
+                                                                                        style={{
+                                                                                            top: `${textPosition.y}%`,
+                                                                                            left: `${textPosition.x}%`,
+                                                                                            zIndex: 50, // Explicit Z-Index VERY HIGH
+                                                                                            transform: `translate(-50%, -50%) scale(${textScale})` // Text Scale
+                                                                                        }}
+                                                                                        onMouseDown={(e) => handleMouseDown(e, 'text')}
+                                                                                    >
+                                                                                        <span style={{ fontFamily, fontWeight, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center' }}>
+                                                                                            {value}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </div >
+                                                    )}
+                                                            {/* Pointer events wrapper end */}
+                                                        </div>
                                                 </div>
                                             );
                                         } else {
