@@ -39,7 +39,7 @@ export function CategoryPage() {
 
                         if (labelData && labelData.length > 0) {
                             categoryLabel = labelData[0].label;
-                            currentTargetSlug = undefined; // If a direct label match is found, no need for subcategory filtering
+                            targetSlug = undefined; // If a direct label match is found, no need for subcategory filtering
                             categoryFound = true;
                         }
 
@@ -53,7 +53,7 @@ export function CategoryPage() {
 
                             if (pathData && pathData.length > 0) {
                                 categoryLabel = pathData[0].label;
-                                currentTargetSlug = undefined; // If a direct path match is found, no need for subcategory filtering
+                                targetSlug = undefined; // If a direct path match is found, no need for subcategory filtering
                                 categoryFound = true;
                             }
                         }
@@ -75,7 +75,7 @@ export function CategoryPage() {
 
                             if (menuData && menuData.length > 0) {
                                 categoryLabel = menuData[0].label;
-                                currentTargetSlug = undefined; // If a menu item is found, no need for subcategory filtering
+                                targetSlug = undefined; // If a menu item is found, no need for subcategory filtering
                             } else {
                                 // Final Fallback: Capitalize
                                 categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
@@ -104,10 +104,10 @@ export function CategoryPage() {
 
                 if (data && data.length > 0) {
                     let filtered = data;
-                    // Only apply local filtering if we DIDN'T find a specific menu match (currentTargetSlug is still set)
-                    if (currentTargetSlug) {
+                    // Only apply local filtering if we DIDN'T find a specific menu match (targetSlug is still set)
+                    if (targetSlug) {
                         const normalize = (str: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-') : '';
-                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(currentTargetSlug!));
+                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(targetSlug!));
                     }
                     setProducts(filtered);
                 } else {
