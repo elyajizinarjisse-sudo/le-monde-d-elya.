@@ -1,13 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { PublicLayout } from './components/layout/PublicLayout';
-import { Hero } from './components/home/Hero';
-import { ProductSection } from './components/home/ProductSection';
-import { BlogSection } from './components/home/BlogSection';
-import { BOOKS, TOYS, DECOR, BLOG_POSTS } from './data/mockData';
 // Eagerly loaded public components
-import { SocialStream } from './components/home/SocialStream';
-import { ReviewsSlider } from './components/home/ReviewsSlider';
+// Home components now imported inside Home.tsx
 
 // Eagerly loaded Admin components
 import { GlobalErrorBoundary } from './components/common/GlobalErrorBoundary';
@@ -30,6 +25,8 @@ import { ContentManagerModule } from './components/admin/ContentManagerModule';
 // Pages - Public
 import { CategoryPage } from './components/pages/CategoryPage';
 import { ProductPage } from './components/pages/ProductPage';
+import { Home } from './components/pages/Home'; // Actual export
+
 import { CartProvider } from './context/CartContext';
 
 function App() {
@@ -41,19 +38,7 @@ function App() {
           <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route element={<PublicLayout />}>
-                <Route path="/" element={
-                  <>
-                    <Hero />
-                    <ProductSection title="Nos Coups de Cœur" products={BOOKS} />
-                    <div className="bg-gray-50">
-                      <ProductSection title="Nouveautés Jouets" products={TOYS} />
-                    </div>
-                    <ProductSection title="Décoration Magique" products={DECOR} />
-                    <BlogSection posts={BLOG_POSTS} />
-                    <ReviewsSlider />
-                    <SocialStream />
-                  </>
-                } />
+                <Route path="/" element={<Home />} />
                 <Route path="/product/:id" element={<ProductPage />} />
                 <Route path="/category/:categorySlug" element={<CategoryPage />} />
                 <Route path="/category/:categorySlug/:subcategorySlug" element={<CategoryPage />} />

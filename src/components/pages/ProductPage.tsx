@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Star, Heart, ShoppingBag, Truck, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -21,11 +21,21 @@ interface FullProduct extends Product {
     variants?: ProductVariant[];
     customization_options?: { id: string; type: 'text' | 'select' | 'file'; label: string; required: boolean; options?: string[] }[];
     stock_status?: string;
+    technical_views?: {
+        front?: string;
+        back?: string;
+        right?: string;
+        left?: string;
+    };
 }
 
 export function ProductPage() {
     const { id } = useParams();
     const { addToCart, setIsCartOpen } = useCart();
+
+    // Preview Container Ref for Drag and Drop
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [dragging, setDragging] = useState<'text' | 'image' | null>(null);
 
     const [product, setProduct] = useState<FullProduct | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +43,19 @@ export function ProductPage() {
     const [selectedVariant, setSelectedVariant] = useState<string>('');
     const [customizationValues, setCustomizationValues] = useState<Record<string, string>>({});
     const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
+
+    // Scaling
+    const [imageScale, setImageScale] = useState<number>(1.0);
+    const [textScale, setTextScale] = useState<number>(1.0);
+
+    // Positioning
+    const [textPosition, setTextPosition] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+    const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+
+    // State for view switching (front, back, left, right) - specific for Casquette
+    // Initialize to null so it defaults to the Main Marketing Image (selectedImage)
+    const [currentView, setCurrentView] = useState<string | null>(null);
+
     const [error, setError] = useState<string | null>(null);
 
     // Helpers
@@ -189,6 +212,35 @@ export function ProductPage() {
             : parsePrice(product.price))
         : 0;
 
+    // DRAG AND DROP HANDLERS
+    const handleMouseDown = (e: React.MouseEvent, type: 'text' | 'image') => {
+        e.stopPropagation();
+        e.preventDefault();
+        setDragging(type);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!dragging || !containerRef.current) return;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Clamp values 0-100
+        const clampedX = Math.max(0, Math.min(100, x));
+        const clampedY = Math.max(0, Math.min(100, y));
+
+        if (dragging === 'text') {
+            setTextPosition({ x: clampedX, y: clampedY });
+        } else if (dragging === 'image') {
+            setImagePosition({ x: clampedX, y: clampedY });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setDragging(null);
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-[50vh] flex items-center justify-center">
@@ -212,6 +264,79 @@ export function ProductPage() {
         );
     }
 
+    // Prepare images for Gallery and View Switching (Deduplicated)
+    const uniqueImages = (() => {
+        const mainImgUrl = product.image ? getImageUrl(product.image) : '';
+        const galleryImages = Array.isArray(product.images) ? product.images.map(getImageUrl).filter(Boolean) : [];
+        const allImages = [mainImgUrl, ...galleryImages].filter(Boolean) as string[];
+        return Array.from(new Set(allImages));
+    })();
+
+    // For Casquette (15/16), we separate Marketing Images (Gallery) from Technical Views (Buttons)
+    // Assumption: The last 4 images in the unique list are the Technical Views (Front, Back, Right, Left)
+    // IF there are enough images.
+    // For Casquette (ID 15/16), we separate technical technical views
+    const isCasquette = getSafeString(product.id) === '15' || getSafeString(product.id) === '16';
+
+    // Known Technical View URLs (AVIFs) - Identified from DB
+    // 0.9042... was identified as the 'Flexfit Label' photo, not a technical view.
+    const TECHNICAL_VIEWS = [
+        '0.001767523287284023.avif', // Front
+        '0.9920138127518984.avif', // Back
+        '0.9882617325508585.avif'  // Side (New candidate for Side View)
+        // '0.450798083985984.avif' // This is clearly the Label, so we remove from Tech Views to keep in Gallery
+    ];
+
+    // Use Technical Views if available (from new JSONB column)
+    const technicalViews = product.technical_views || {};
+    const hasTechnicalViews = Object.keys(technicalViews).length > 0;
+
+    // Use explicit technical views if available, otherwise fallback to finding them in the images array (Legacy)
+    let viewImages: string[] = [];
+
+    if (hasTechnicalViews) {
+        viewImages = [
+            technicalViews.front || '',
+            technicalViews.back || '',
+            technicalViews.right || '',
+            technicalViews.left || ''
+        ].filter(Boolean);
+    } else if (isCasquette) {
+        // ... (Keep existing legacy logic as fallback for now, or simplify)
+        // Explicitly set the known valid Technical Views to avoid logic errors
+        const explicitFront = uniqueImages.find(u => u.includes('0.001767523287284023.avif'));
+        const explicitBack = uniqueImages.find(u => u.includes('0.9920138127518984.avif'));
+        const explicitSide = uniqueImages.find(u => u.includes('0.9882617325508585.avif'));
+
+        if (explicitFront && explicitBack && explicitSide) {
+            viewImages = [explicitFront, explicitBack, explicitSide, explicitSide];
+        } else {
+            // Fallback if images missing
+            const foundTechViews = uniqueImages.filter(url =>
+                TECHNICAL_VIEWS.some(tech => url.includes(tech))
+            );
+            if (foundTechViews.length > 0) {
+                // Reconstruct viewImages in correct order for buttons [Front, Back, Right, Left]
+                const front = foundTechViews.find(u => u.includes('0.0017'));
+                const back = foundTechViews.find(u => u.includes('0.9920'));
+                const side = foundTechViews.find(u => u.includes('0.9882'));
+                viewImages = [front, back, side, side].filter(Boolean) as string[];
+            }
+        }
+    } else if (uniqueImages.length >= 4) {
+        // Fallback (Legacy behavior just in case URLs changed)
+        viewImages = uniqueImages.slice(-4);
+    }
+
+    // Gallery Images: For Casquette, if we have technical views, we don't want to show them ALL in main gallery necessarily.
+    // But user request was primarily separation.
+    // Let's keep uniqueImages as the source for galleryImages, but MAYBE filter out the ones that are technical views IF they were explicitly migrated?
+    // User said "lui se fournit dans la banque d'image du main page".
+    // If we use technical_views, we use THOSE for the preview.
+    // The Gallery remains 'uniqueImages'.
+    const galleryImages = uniqueImages;
+
+
     return (
         <div className="bg-gray-50 min-h-screen pb-20">
             {/* Breadcrumb */}
@@ -224,7 +349,7 @@ export function ProductPage() {
 
             <div className="container mx-auto px-4">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
 
                         {/* LEFT: Gallery */}
                         <div className="p-6 md:p-8 bg-gray-50/50">
@@ -246,29 +371,17 @@ export function ProductPage() {
 
                             {/* Thumbnails */}
                             {(() => {
-                                // Deduplicate images:
-                                // 1. Get the main image URL
-                                const mainImgUrl = product.image ? getImageUrl(product.image) : '';
-
-                                // 2. Get gallery images
-                                const galleryImages = Array.isArray(product.images) ? product.images.map(getImageUrl).filter(Boolean) : [];
-
-                                // 3. Combine, but normalize to avoid duplicates (ignoring query params if possible, or just strict string match)
-                                // Actually, typical requirement: Main Image + Unique Gallery Images
-
-                                const allImages = [mainImgUrl, ...galleryImages].filter(Boolean) as string[];
-
-                                // Use Set for strict deduplication
-                                const uniqueImages = Array.from(new Set(allImages));
-
-                                if (uniqueImages.length <= 1) return null; // Don't show thumbnails if only 1 unique image
+                                if (galleryImages.length <= 1) return null;
 
                                 return (
                                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                        {uniqueImages.map((thumbUrl, idx) => (
+                                        {galleryImages.map((thumbUrl, idx) => (
                                             <button
                                                 key={idx}
-                                                onClick={() => setSelectedImage(thumbUrl)}
+                                                onClick={() => {
+                                                    setSelectedImage(thumbUrl);
+                                                    setCurrentView(null);
+                                                }}
                                                 className={`w-20 h-20 flex-shrink-0 rounded-lg border-2 overflow-hidden ${selectedImage === thumbUrl ? 'border-primary' : 'border-transparent'}`}
                                             >
                                                 <img src={thumbUrl} className="w-full h-full object-cover" />
@@ -329,11 +442,13 @@ export function ProductPage() {
                             {Array.isArray(product.customization_options) && product.customization_options.length > 0 && (
                                 <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100">
                                     <h3 className="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wide">Personnalisation</h3>
+
                                     <div className="space-y-4">
                                         {product.customization_options.map((option, idx) => {
                                             const safeLabel = getSafeString(option.label);
+
                                             return (
-                                                <div key={idx}>
+                                                <div key={idx} className="animate-fade-in">
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         {safeLabel} {option.required && <span className="text-red-500">*</span>}
                                                     </label>
@@ -394,31 +509,100 @@ export function ProductPage() {
                                     {(() => {
                                         // PREVIEW CONFIGURATION
                                         const PREVIEW_ZONES: Record<string, { templateUrl?: string; style: React.CSSProperties }> = {
-                                            '15': { // Casquette
-                                                templateUrl: 'https://dmrdmzjswllpcibmdwfy.supabase.co/storage/v1/object/public/product-images/public/casquette_preview_template.png',
-                                                style: { top: '32%', left: '15%', width: '70%', height: '20%' }
+                                            '15': { // Casquette Personnalisable
+                                                style: { top: '20%', left: '15%', width: '70%', height: '55%' }
                                             },
-                                            '11': { // Tee-shirt
-                                                style: { top: '20%', left: '28%', width: '44%', height: '40%' } // Chest Area
+                                            '16': { // Casquette Unisexe (Share same template)
+                                                style: { top: '20%', left: '15%', width: '70%', height: '55%' }
+                                            },
+                                            '14': { // Custom Mug Céramique
+                                                // Center of the mug face
+                                                style: { top: '25%', left: '25%', width: '50%', height: '50%' }
+                                            },
+                                            '11': { // Custom T-shirt Unisex Bio
+                                                // No template URL yet, uses product image. 
+                                                // Adjust zone to chest area.
+                                                style: { top: '20%', left: '28%', width: '44%', height: '40%' }
                                             },
                                             '10': { // Doudou
                                                 style: { top: '55%', left: '25%', width: '50%', height: '20%' } // Tummy Area
                                             },
                                             '13': { // Mug 1
-                                                style: { top: '30%', left: '25%', width: '50%', height: '40%' } // Center Mug
-                                            },
-                                            '14': { // Mug 2
-                                                style: { top: '30%', left: '25%', width: '50%', height: '40%' } // Center Mug
+                                                templateUrl: '/mug_template.png',
+                                                style: { top: '16%', left: '5%', width: '90%', height: '68%' } // Full Wrap Area
                                             }
+                                            // '14' (Mug 2) removed as it would be duplicate if intended to share config, 
+                                            // or merge if needed. Assuming Mug 14 shares same config based on context or add distinctive config if unique.
+                                            // Actually, Mug 14 specific config was added previously. I should check if I am overwriting or duplicating.
+                                            // Refactoring to single entry for 14.
                                         };
 
                                         const previewConfig = PREVIEW_ZONES[getSafeString(product.id)];
 
                                         if (previewConfig) {
-                                            const bgImage = previewConfig.templateUrl || selectedImage;
+                                            // VIEW SWITCHING LOGIC (Casquette) uses top-level currentView state
+
+                                            // Determine background image based on View
+                                            // PRIORITIZE Technical Views from new column
+                                            let bgImage = selectedImage; // Default to main image
+
+                                            if (product.technical_views && Object.keys(product.technical_views).length > 0) {
+                                                // New Logic: Use explicit technical views
+                                                if (currentView === 'front') bgImage = product.technical_views.front || bgImage;
+                                                else if (currentView === 'back') bgImage = product.technical_views.back || bgImage;
+                                                else if (currentView === 'right') bgImage = product.technical_views.right || bgImage; // "Côté droit"
+                                                else if (currentView === 'left') bgImage = product.technical_views.left || bgImage;   // "Côté gauche"
+                                                else if (currentView === 'side') bgImage = product.technical_views.right || bgImage; // Fallback
+                                                // If currentView is null, strictly show selectedImage (Gallery Image)
+                                                else bgImage = selectedImage;
+                                            } else {
+                                                // Legacy Fallback using array indices
+                                                bgImage = previewConfig.templateUrl || selectedImage;
+                                                if (currentView === 'back' && viewImages.length > 1) {
+                                                    bgImage = viewImages[1];
+                                                } else if (currentView === 'right' && viewImages.length > 2) {
+                                                    bgImage = viewImages[2];
+                                                } else if (currentView === 'left' && viewImages.length > 3) {
+                                                    bgImage = viewImages[3];
+                                                } else if (currentView === 'front' && viewImages.length > 0) {
+                                                    bgImage = viewImages[0];
+                                                }
+                                            }
 
                                             return (
                                                 <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                                                    {/* View Switching Buttons (Only for Casquette) */}
+                                                    {(getSafeString(product.id) === '15' || getSafeString(product.id) === '16') && viewImages.length >= 4 && (
+                                                        <div className="absolute bottom-4 left-0 right-0 flex flex-wrap justify-center gap-2 z-30 pointer-events-auto px-2">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('front'); }}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'front' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
+                                                            >
+                                                                Face avant
+                                                            </button>
+
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('back'); }}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'back' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
+                                                            >
+                                                                Dos
+                                                            </button>
+
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('right'); }}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'right' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
+                                                            >
+                                                                Côté droit
+                                                            </button>
+
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('left'); }}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'left' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
+                                                            >
+                                                                Côté gauche
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                     {/* Background Layer */}
                                                     <img
                                                         src={bgImage}
@@ -426,51 +610,140 @@ export function ProductPage() {
                                                         className="absolute inset-0 w-full h-full object-contain z-10"
                                                     />
 
-                                                    {/* Customization Overlay Area */}
+                                                    {/* Customization Overlay Area - Removed overflow-hidden to allow images to exceed zone if needed */}
                                                     <div
-                                                        className="absolute z-20 flex items-center justify-center overflow-hidden"
+                                                        className="absolute z-20 flex items-center justify-center pointer-events-none"
                                                         style={{
                                                             ...previewConfig.style,
                                                         }}
                                                     >
-                                                        {/* Text Layer */}
-                                                        {Object.entries(customizationValues).map(([key, value]) => {
-                                                            if (!value) return null;
-                                                            const isText = key.toLowerCase().includes("prénom") || key.toLowerCase().includes("message") || key.toLowerCase().includes("texte");
-                                                            if (!isText) return null;
+                                                        {/* Pointer Events Wrapper for Interaction */}
+                                                        <div
+                                                            ref={containerRef}
+                                                            className="relative w-full h-full pointer-events-auto cursor-crosshair" // Cursor indicates interactive area
+                                                            onMouseMove={handleMouseMove}
+                                                            onMouseUp={handleMouseUp}
+                                                            onMouseLeave={handleMouseUp} // Stop drag if leaving container
+                                                        >
 
-                                                            // Font Logic
-                                                            const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
-                                                            const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
-                                                            let fontFamily = "inherit";
-                                                            if (selectedFont?.toLowerCase().includes("cursif")) fontFamily = "'Great Vibes', cursive";
-                                                            else if (selectedFont?.toLowerCase().includes("bâton")) fontFamily = "'Roboto', sans-serif";
-                                                            else if (selectedFont?.toLowerCase().includes("manuscrit")) fontFamily = "'Handlee', cursive";
+                                                            {/* Image Layer */}
+                                                            {Object.entries(customizationValues).map(([key, value]) => {
+                                                                if (!value || !value.startsWith('http')) return null;
 
-                                                            // Color Logic
-                                                            const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
-                                                            const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
+                                                                return (
+                                                                    <div
+                                                                        key={key}
+                                                                        className="absolute origin-center cursor-move hover:border hover:border-dashed hover:border-indigo-400"
+                                                                        style={{
+                                                                            top: `${imagePosition.y}%`,
+                                                                            left: `${imagePosition.x}%`,
+                                                                            width: '50%', // Fixed base width relative to zone
+                                                                            transform: `translate(-50%, -50%) scale(${imageScale})`, // Zoom via transform
+                                                                            zIndex: 10,
+                                                                        }}
+                                                                        onMouseDown={(e) => handleMouseDown(e, 'image')}
+                                                                    >
+                                                                        <img
+                                                                            src={value}
+                                                                            alt="Logo"
+                                                                            className="w-full h-auto object-contain pointer-events-none"
+                                                                        />
+                                                                    </div>
+                                                                );
+                                                            })}
 
-                                                            const colorMap: Record<string, string> = {
-                                                                "Noir": "black", "Blanc": "white", "Rouge": "#D32F2F", "Bleu Marine": "#1A237E", "Or": "#FFD700",
-                                                                "Argent": "#C0C0C0", "Rose": "#E91E63", "Bleu": "#1E88E5", "Vert": "#43A047"
-                                                            };
-                                                            const cssColor = colorMap[selectedColor] || selectedColor;
+                                                            {/* Text Layer */}
+                                                            {(() => {
+                                                                const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
+                                                                    if (!value) return false;
+                                                                    const k = key.toLowerCase();
+                                                                    const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
+                                                                    if (isExcluded) return false;
+                                                                    const option = product.customization_options?.find(o => getSafeString(o.label) === key);
+                                                                    if (option && option.type !== 'text') return false;
+                                                                    return true;
+                                                                });
 
-                                                            return (
-                                                                <span key={key} style={{ fontFamily, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center', whiteSpace: 'pre-wrap' }}>
-                                                                    {value}
-                                                                </span>
-                                                            );
-                                                        })}
+                                                                return (
+                                                                    <>
+                                                                        {validTextEntries.length === 0 && (
+                                                                            <div
+                                                                                className="absolute transform -translate-x-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-sm border border-gray-300 rounded px-2 py-1 flex items-center justify-center pointer-events-none"
+                                                                                style={{
+                                                                                    top: `${textPosition.y}%`,
+                                                                                    left: `${textPosition.x}%`,
+                                                                                    minWidth: '80px',
+                                                                                    zIndex: 5
+                                                                                }}
+                                                                            >
+                                                                                <span className="text-[10px] text-gray-600 font-bold uppercase opacity-70">Zone Texte</span>
+                                                                            </div>
+                                                                        )}
 
-                                                        {/* Image Layer */}
-                                                        {Object.entries(customizationValues).map(([key, value]) => {
-                                                            if (!value || !value.startsWith('http')) return null;
-                                                            return (
-                                                                <img key={key} src={value} alt="Logo" className="absolute inset-0 w-full h-full object-contain p-1" />
-                                                            );
-                                                        })}
+                                                                        {validTextEntries.map(([key, value]) => {
+                                                                            // Font Logic
+                                                                            const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                                            const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
+                                                                            let fontFamily = "inherit";
+                                                                            let fontWeight = "normal";
+
+                                                                            const f = selectedFont?.toLowerCase() || "";
+
+                                                                            // Mapping for French ("bâton", "cursif", "manuscrit") AND English ("Modern Sans", "Classic Serif", "Handwritten", "Bold Impact")
+                                                                            if (f.includes("cursif") || f.includes("great vibes") || f.includes("cursive")) {
+                                                                                fontFamily = "'Great Vibes', cursive";
+                                                                            } else if (f.includes("bâton") || f.includes("modern sans") || f.includes("sans")) {
+                                                                                fontFamily = "'Roboto', sans-serif";
+                                                                            } else if (f.includes("manuscrit") || f.includes("handwritten") || f.includes("handlee")) {
+                                                                                fontFamily = "'Handlee', cursive";
+                                                                            } else if (f.includes("serif") || f.includes("classic")) {
+                                                                                fontFamily = "'Times New Roman', serif";
+                                                                            } else if (f.includes("bold") || f.includes("impact")) {
+                                                                                fontFamily = "'Impact', sans-serif";
+                                                                                fontWeight = "bold";
+                                                                            }
+
+                                                                            // Color Logic
+                                                                            const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
+                                                                            const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
+                                                                            const colorMap: Record<string, string> = {
+                                                                                "Noir": "black", "Black": "black",
+                                                                                "Blanc": "white", "White": "white",
+                                                                                "Rouge": "#D32F2F", "Red": "#D32F2F",
+                                                                                "Bleu Marine": "#1A237E", "Bleu Marin": "#1A237E", "Navy": "#1A237E",
+                                                                                "Or": "#FFD700", "Gold": "#FFD700",
+                                                                                "Argent": "#C0C0C0", "Silver": "#C0C0C0",
+                                                                                "Rose": "#E91E63", "Rose Pâle": "#FFB6C1", "Pink": "#E91E63",
+                                                                                "Bleu": "#1E88E5", "Blue": "#1E88E5",
+                                                                                "Vert": "#43A047", "Green": "#43A047",
+                                                                                "Chocolat": "#5D4037", "Chocolate": "#5D4037",
+                                                                                "Violet": "#9C27B0", "Purple": "#9C27B0",
+                                                                                "Jaune": "#FFD600", "Yellow": "#FFD600" // Using a slightly deeper yellow for visibility
+                                                                            };
+                                                                            const cssColor = colorMap[selectedColor] || selectedColor;
+
+                                                                            return (
+                                                                                <div
+                                                                                    key={key}
+                                                                                    className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-pre shadow-sm border border-transparent hover:border-dashed hover:border-indigo-400 cursor-move"
+                                                                                    style={{
+                                                                                        top: `${textPosition.y}%`,
+                                                                                        left: `${textPosition.x}%`,
+                                                                                        zIndex: 50, // Explicit Z-Index VERY HIGH
+                                                                                        transform: `translate(-50%, -50%) scale(${textScale})` // Text Scale
+                                                                                    }}
+                                                                                    onMouseDown={(e) => handleMouseDown(e, 'text')}
+                                                                                >
+                                                                                    <span style={{ fontFamily, fontWeight, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center' }}>
+                                                                                        {value}
+                                                                                    </span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div >
                                                     </div>
                                                 </div>
                                             );
@@ -501,31 +774,83 @@ export function ProductPage() {
                                             );
                                         }
                                     })()}
-                                </div>
-                            )}
 
-                            {/* Variants */}
-                            {Array.isArray(product.variants) && product.variants.length > 0 && (
-                                <div className="mb-6">
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                                        Variante
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {product.variants.map((variant) => (
-                                            <button
-                                                key={getSafeString(variant.name)}
-                                                onClick={() => setSelectedVariant(variant.name)}
-                                                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedVariant === variant.name
-                                                    ? 'border-primary bg-primary/5 text-primary'
-                                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                                    }`}
-                                            >
-                                                {getSafeString(variant.name)}
-                                            </button>
-                                        ))}
+                                    {/* Positioning Controls */}
+                                    <div className="mt-4 space-y-4">
+                                        {Object.values(customizationValues).some(v => v && !v.startsWith('http')) && (
+                                            <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
+                                                <h4 className="text-xs font-bold text-indigo-900 mb-2 uppercase tracking-wide">Position & Taille Texte</h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">Horizontal (X)</label>
+                                                        <input type="range" min="0" max="100" value={textPosition.x} onChange={e => setTextPosition(p => ({ ...p, x: parseInt(e.target.value) }))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">Vertical (Y)</label>
+                                                        <input type="range" min="0" max="100" value={textPosition.y} onChange={e => setTextPosition(p => ({ ...p, y: parseInt(e.target.value) }))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                    </div>
+                                                </div>
+                                                <div className="mt-2">
+                                                    <label className="text-[10px] text-gray-500 block mb-1 flex justify-between">
+                                                        <span>Echelle (Zoom Texte)</span>
+                                                        <span>{Math.round(textScale * 100)}%</span>
+                                                    </label>
+                                                    <input type="range" min="0.5" max="3.0" step="0.1" value={textScale} onChange={e => setTextScale(parseFloat(e.target.value))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {Object.values(customizationValues).some(v => v && v.startsWith('http')) && (
+                                            <div className="p-3 bg-purple-50/50 border border-purple-100 rounded-lg">
+                                                <h4 className="text-xs font-bold text-purple-900 mb-2 uppercase tracking-wide">Position & Taille Image</h4>
+                                                <div className="grid grid-cols-2 gap-4 mb-2">
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">Horizontal (X)</label>
+                                                        <input type="range" min="0" max="100" value={imagePosition.x} onChange={e => setImagePosition(p => ({ ...p, x: parseInt(e.target.value) }))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-gray-500 block mb-1">Vertical (Y)</label>
+                                                        <input type="range" min="0" max="100" value={imagePosition.y} onChange={e => setImagePosition(p => ({ ...p, y: parseInt(e.target.value) }))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500 block mb-1 flex justify-between">
+                                                        <span>Echelle (Zoom)</span>
+                                                        <span>{Math.round(imageScale * 100)}%</span>
+                                                    </label>
+                                                    <input type="range" min="0.2" max="3.0" step="0.1" value={imageScale} onChange={e => setImageScale(parseFloat(e.target.value))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            )
+                            }
+
+                            {/* Variants */}
+                            {
+                                Array.isArray(product.variants) && product.variants.length > 0 && (
+                                    <div className="mb-6">
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                                            Variante
+                                        </label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {product.variants.map((variant) => (
+                                                <button
+                                                    key={getSafeString(variant.name)}
+                                                    onClick={() => setSelectedVariant(variant.name)}
+                                                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedVariant === variant.name
+                                                        ? 'border-primary bg-primary/5 text-primary'
+                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    {getSafeString(variant.name)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            }
 
                             {/* Actions */}
                             <div className="flex items-center gap-4 mb-8">

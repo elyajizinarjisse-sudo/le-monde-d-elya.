@@ -58,6 +58,12 @@ export function CartDrawer() {
                                 <div className="flex-1 flex flex-col justify-between py-1">
                                     <div>
                                         <h3 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2">{item.title}</h3>
+                                        {/* Variant Display */}
+                                        {item.variant && (
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                                {item.variant.name}
+                                            </p>
+                                        )}
                                         <p className="text-primary font-bold mt-1">{item.price.toFixed(2)} $</p>
                                     </div>
                                     <div className="flex items-center justify-between">
