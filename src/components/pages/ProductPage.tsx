@@ -353,21 +353,50 @@ export function ProductPage() {
 
                         {/* LEFT: Gallery */}
                         <div className="p-6 md:p-8 bg-gray-50/50">
-                            <div
-                                className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 mb-4 w-full"
-                                style={{ aspectRatio: product.aspect_ratio === 'portrait' ? '3/4' : product.aspect_ratio === 'landscape' ? '4/3' : '1/1' }}
-                            >
-                                <img
-                                    src={selectedImage}
-                                    alt={getSafeString(product.title)}
-                                    className="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500"
-                                />
-                                {product.isSale && (
-                                    <span className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                        Promo
-                                    </span>
-                                )}
-                            </div>
+                            {/* Dynamic Aspect Ratio Calculation */}
+                            {(() => {
+                                let dynamicAspectRatio = product.aspect_ratio === 'portrait' ? '3/4' : product.aspect_ratio === 'landscape' ? '4/3' : '1/1';
+
+                                // Override with Variant Dimensions if available
+                                if (selectedVariant) {
+                                    // Robust regex: Match two numbers separated by 'x'
+                                    const match = selectedVariant.match(/(\d+)\D+x\D+(\d+)/i);
+                                    if (match) {
+                                        let w = parseInt(match[1]);
+                                        let h = parseInt(match[2]);
+
+                                        // Explicit Orientation Override
+                                        const lowerVariant = selectedVariant.toLowerCase();
+                                        if (lowerVariant.includes('horizontal') || lowerVariant.includes('paysage')) {
+                                            if (h > w) { const temp = w; w = h; h = temp; }
+                                        } else if (lowerVariant.includes('vertical') || lowerVariant.includes('portrait')) {
+                                            if (w > h) { const temp = w; w = h; h = temp; }
+                                        }
+
+                                        if (!isNaN(w) && !isNaN(h) && h !== 0) {
+                                            dynamicAspectRatio = `${w}/${h}`;
+                                        }
+                                    }
+                                }
+
+                                return (
+                                    <div
+                                        className="relative rounded-xl overflow-hidden bg-white shadow-sm border border-gray-100 mb-4 w-full transition-all duration-300 ease-in-out"
+                                        style={{ aspectRatio: dynamicAspectRatio }}
+                                    >
+                                        <img
+                                            src={selectedImage}
+                                            alt={getSafeString(product.title)}
+                                            className="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-500"
+                                        />
+                                        {product.isSale && (
+                                            <span className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                                                Promo
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Thumbnails */}
                             {(() => {
@@ -438,6 +467,110 @@ export function ProductPage() {
                                 <p className="text-xs text-gray-500 mt-1">Taxes et livraison calculées au paiement.</p>
                             </div>
 
+                            {/* VARIANTS SELECTOR */}
+                            {product.variants && product.variants.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-bold text-gray-800 mb-3 uppercase tracking-wide">
+                                        {(product.category === 'Impressions' || product.category === 'Affiches') ? 'Options' : 'Modèle'}
+                                    </h3>
+
+                                    {/* POSTER UI: Split Size & Finish if applicable */}
+                                    {((product.category === 'Impressions' || product.category === 'Affiches') && product.variants[0].name.includes(' - ')) ? (
+                                        (() => {
+                                            // 1. EXTRACT DATA
+                                            // Expected format: "Size - Finish"
+                                            const allSizes = new Set<string>();
+                                            const allFinishes = new Set<string>();
+                                            const map: Record<string, Record<string, string>> = {}; // size -> finish -> variantName
+
+                                            product.variants?.forEach(v => {
+                                                const parts = v.name.split(' - ');
+                                                if (parts.length >= 2) {
+                                                    const size = parts[0];
+                                                    const finish = parts[1];
+                                                    allSizes.add(size);
+                                                    allFinishes.add(finish);
+
+                                                    if (!map[size]) map[size] = {};
+                                                    map[size][finish] = v.name;
+                                                }
+                                            });
+
+                                            // Determine current selection parts
+                                            const currentParts = selectedVariant.split(' - ');
+                                            const currentSize = currentParts[0];
+                                            const currentFinish = currentParts[1];
+
+                                            return (
+                                                <div className="space-y-4">
+                                                    {/* SIZES */}
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-gray-500 mb-2 block">Dimensions</label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {Array.from(allSizes).map(size => (
+                                                                <button
+                                                                    key={size}
+                                                                    onClick={() => {
+                                                                        // Try to keep current finish if possible, else pick first available
+                                                                        const nextVariant = map[size][currentFinish] || map[size][Object.keys(map[size])[0]];
+                                                                        setSelectedVariant(nextVariant);
+                                                                    }}
+                                                                    className={`px-3 py-2 text-sm border rounded-lg transition-all ${currentSize === size
+                                                                        ? 'border-primary bg-primary/5 text-primary font-bold ring-1 ring-primary'
+                                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                                        }`}
+                                                                >
+                                                                    {size}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* FINISHES */}
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-gray-500 mb-2 block">Finition</label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {Array.from(allFinishes).map(finish => (
+                                                                <button
+                                                                    key={finish}
+                                                                    onClick={() => {
+                                                                        // Try to find variant with current size and new finish
+                                                                        const nextVariant = map[currentSize]?.[finish];
+                                                                        if (nextVariant) setSelectedVariant(nextVariant);
+                                                                    }}
+                                                                    className={`px-4 py-2 text-sm border rounded-lg transition-all ${currentFinish === finish
+                                                                        ? 'border-primary bg-primary/5 text-primary font-bold ring-1 ring-primary'
+                                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                                        }`}
+                                                                >
+                                                                    {finish}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
+                                    ) : (
+                                        /* STANDARD UI: Simple Buttons */
+                                        <div className="flex flex-wrap gap-2">
+                                            {product.variants.map((variant) => (
+                                                <button
+                                                    key={variant.name}
+                                                    onClick={() => setSelectedVariant(variant.name)}
+                                                    className={`px-4 py-2 text-sm border rounded-lg transition-all ${selectedVariant === variant.name
+                                                        ? 'border-primary bg-primary/5 text-primary font-bold ring-1 ring-primary'
+                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    {variant.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Customization Options */}
                             {Array.isArray(product.customization_options) && product.customization_options.length > 0 && (
                                 <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100">
@@ -498,6 +631,8 @@ export function ProductPage() {
                                 </div>
                             )}
 
+                            {/* Duplicate Controls Removed */}
+
                             {/* Live Preview */}
                             {/* Visual Preview (Configuration Based) */}
                             {(Object.keys(customizationValues).length > 0 || Object.values(uploadingFiles).some(v => v)) && (
@@ -537,9 +672,42 @@ export function ProductPage() {
                                             // Refactoring to single entry for 14.
                                         };
 
-                                        const previewConfig = PREVIEW_ZONES[getSafeString(product.id)];
+                                        const previewConfig = PREVIEW_ZONES[getSafeString(product.id)] ||
+                                            ((product.category === 'Impressions' || product.category === 'Affiches' || product.category?.toLowerCase() === 'poster' || (product.subcategory && (product.subcategory.includes('Affiches') || product.subcategory.toLowerCase().includes('poster'))) || getSafeString(product.id) === '22') ? {
+                                                // Default Poster Config: Full area
+                                                style: { top: '0%', left: '0%', width: '100%', height: '100%' }
+                                            } : undefined);
 
                                         if (previewConfig) {
+                                            // CALCULATE ASPECT RATIO
+                                            let aspectRatio = '1/1'; // Default
+                                            const lowerCat = product.category?.toLowerCase() || '';
+                                            const lowerSub = product.subcategory?.toLowerCase() || '';
+                                            const isPoster = lowerCat === 'impressions' || lowerCat === 'affiches' || lowerCat === 'poster' || lowerSub.includes('affiches') || lowerSub.includes('poster') || getSafeString(product.id) === '22';
+
+                                            if (isPoster && selectedVariant) {
+                                                // Robust regex: Match two numbers separated by 'x' with any non-digit chars in between
+                                                const match = selectedVariant.match(/(\d+)\D+x\D+(\d+)/i);
+
+                                                if (match) {
+                                                    let w = parseInt(match[1]);
+                                                    let h = parseInt(match[2]);
+
+                                                    // Explicit Orientation Override
+                                                    const lowerVariant = selectedVariant.toLowerCase();
+                                                    if (lowerVariant.includes('horizontal') || lowerVariant.includes('paysage')) {
+                                                        // Ensure Width > Height
+                                                        if (h > w) { const temp = w; w = h; h = temp; }
+                                                    } else if (lowerVariant.includes('vertical') || lowerVariant.includes('portrait')) {
+                                                        // Ensure Height > Width
+                                                        if (w > h) { const temp = w; w = h; h = temp; }
+                                                    }
+
+                                                    if (!isNaN(w) && !isNaN(h) && h !== 0) {
+                                                        aspectRatio = `${w}/${h}`;
+                                                    }
+                                                }
+                                            }
                                             // VIEW SWITCHING LOGIC (Casquette) uses top-level currentView state
 
                                             // Determine background image based on View
@@ -570,7 +738,10 @@ export function ProductPage() {
                                             }
 
                                             return (
-                                                <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+                                                <div
+                                                    className="relative w-full bg-gray-100 rounded-xl overflow-hidden border border-gray-200 transition-all duration-300"
+                                                    style={{ aspectRatio }}
+                                                >
                                                     {/* View Switching Buttons (Only for Casquette) */}
                                                     {(getSafeString(product.id) === '15' || getSafeString(product.id) === '16') && viewImages.length >= 4 && (
                                                         <div className="absolute bottom-4 left-0 right-0 flex flex-wrap justify-center gap-2 z-30 pointer-events-auto px-2">
@@ -669,7 +840,6 @@ export function ProductPage() {
                                                                     const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
                                                                         if (!value) return false;
                                                                         const k = key.toLowerCase();
-                                                                        console.log(`Filter Check: Key="${key}" View="${currentView}"`);
                                                                         const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
                                                                         if (isExcluded) return false;
                                                                         const option = product.customization_options?.find(o => getSafeString(o.label) === key);

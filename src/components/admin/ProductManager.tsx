@@ -28,7 +28,10 @@ export function ProductManager() {
         aspect_ratio: 'portrait', // 'portrait' | 'square' | 'landscape'
         variants: [] as { name: string; price: string; selling_price?: string; image: string }[],
         customization_options: [] as { id: string; type: 'text' | 'select' | 'file'; label: string; required: boolean; options?: string[] }[],
-        digital_files: [] as { name: string; url: string; type: string }[]
+        digital_files: [] as { name: string; url: string; type: string }[],
+        // UI Helpers (Not saved to DB)
+        selectedSizes: [] as string[],
+        selectedFinishes: [] as string[]
     });
 
     // Fetch products and categories
@@ -189,6 +192,7 @@ export function ProductManager() {
             setNewProduct({
                 title: product.title || '',
                 price: product.price !== undefined && product.price !== null ? product.price.toString() : '',
+                sale_price: product.sale_price !== undefined && product.sale_price !== null ? product.sale_price.toString() : '',
                 weight: product.weight?.toString() || '',
                 category: product.category || (categories[0]?.label || ''),
                 subcategory: product.subcategory || '',
@@ -199,7 +203,9 @@ export function ProductManager() {
                 aspect_ratio: product.aspect_ratio || 'portrait',
                 variants: Array.isArray(product.variants) ? product.variants : [],
                 customization_options: Array.isArray(product.customization_options) ? product.customization_options : [],
-                digital_files: Array.isArray(product.digital_files) ? product.digital_files : []
+                digital_files: Array.isArray(product.digital_files) ? product.digital_files : [],
+                selectedSizes: [],
+                selectedFinishes: []
             });
             setEditingId(product.id);
             setIsFormOpen(true);
@@ -215,6 +221,7 @@ export function ProductManager() {
         setNewProduct({
             title: '',
             price: '',
+            sale_price: '',
             weight: '',
             category: categories.length > 0 ? categories[0].label : '',
             subcategory: '',
@@ -225,7 +232,9 @@ export function ProductManager() {
             aspect_ratio: 'portrait',
             variants: [],
             customization_options: [],
-            digital_files: []
+            digital_files: [],
+            selectedSizes: [],
+            selectedFinishes: []
         });
     };
 
@@ -571,7 +580,109 @@ export function ProductManager() {
                                     * La première image sera l'image principale. Définissez le texte alternatif pour chaque image pour un meilleur SEO.
                                 </p>
 
-                                {/* Variants Section */}
+                                {/* POSTER SPECIFIC: Variant Generator */}
+                                {(newProduct.category === 'Impressions' || newProduct.category === 'Affiches' || newProduct.subcategory === 'Affiches') && (
+                                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4 mb-4">
+                                        <h5 className="font-bold text-blue-800 flex items-center gap-2">
+                                            <span className="text-xl">🎨</span>
+                                            Générateur de Variantes (Affiches)
+                                        </h5>
+
+                                        {/* 1. Sizes */}
+                                        <div>
+                                            <label className="text-sm font-semibold text-blue-900 block mb-2">1. Dimensions Disponibles</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    '18" x 12" (Horizontal)', '24" x 18" (Horizontal)', '30" x 20" (Horizontal)', '36" x 24" (Horizontal)',
+                                                    '5" x 7" (Vertical)', '8" x 10" (Vertical)', '11" x 14" (Vertical)', '12" x 18" (Vertical)',
+                                                    '16" x 20" (Vertical)', '18" x 24" (Vertical)', '24" x 36" (Vertical)',
+                                                    '8" x 8" (Carré)', '12" x 12" (Carré)', '16" x 16" (Carré)', '20" x 20" (Carré)', '30" x 30" (Carré)'
+                                                ].map(size => {
+                                                    // Removed unused isActive variable
+                                                    return (
+                                                        <button
+                                                            key={size}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const currentSizes = (newProduct as any).selectedSizes || [];
+                                                                const newSizes = currentSizes.includes(size)
+                                                                    ? currentSizes.filter((s: string) => s !== size)
+                                                                    : [...currentSizes, size];
+                                                                setNewProduct({ ...newProduct, selectedSizes: newSizes } as any);
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${(newProduct as any).selectedSizes?.includes(size)
+                                                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                                                                }`}
+                                                        >
+                                                            {size}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* 2. Finishes */}
+                                        <div>
+                                            <label className="text-sm font-semibold text-blue-900 block mb-2">2. Finitions</label>
+                                            <div className="flex gap-3">
+                                                {['Mat', 'Satin'].map(finish => (
+                                                    <button
+                                                        key={finish}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = (newProduct as any).selectedFinishes || [];
+                                                            const newFinishes = current.includes(finish)
+                                                                ? current.filter((s: string) => s !== finish)
+                                                                : [...current, finish];
+                                                            setNewProduct({ ...newProduct, selectedFinishes: newFinishes } as any);
+                                                        }}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${(newProduct as any).selectedFinishes?.includes(finish)
+                                                            ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                                                            }`}
+                                                    >
+                                                        {finish}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Action */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const sizes = (newProduct as any).selectedSizes || [];
+                                                const finishes = (newProduct as any).selectedFinishes || [];
+
+                                                if (sizes.length === 0 || finishes.length === 0) {
+                                                    alert("Sélectionnez au moins une taille et une finition.");
+                                                    return;
+                                                }
+
+                                                // Generate Variants
+                                                const generatedVariants: any[] = [];
+                                                sizes.forEach((size: string) => {
+                                                    finishes.forEach((finish: string) => {
+                                                        generatedVariants.push({
+                                                            name: `${size} - ${finish}`,
+                                                            price: newProduct.price || "0",
+                                                            image: ""
+                                                        });
+                                                    });
+                                                });
+
+                                                if (confirm(`Cela va générer ${generatedVariants.length} variantes et REMPLACER les variantes existantes. Continuer ?`)) {
+                                                    setNewProduct({ ...newProduct, variants: generatedVariants });
+                                                }
+                                            }}
+                                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition-colors mt-2"
+                                        >
+                                            ⚡ Générer les Variantes
+                                        </button>
+                                    </div>
+                                )}
+
                                 <div className="pt-2 border-t border-gray-200 mt-4">
                                     <label className="text-sm font-bold text-gray-700 block mb-3">Variantes & Prix</label>
 
