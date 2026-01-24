@@ -26,6 +26,7 @@ interface FullProduct extends Product {
         back?: string;
         right?: string;
         left?: string;
+        flat?: string;
     };
 }
 
@@ -116,6 +117,13 @@ export function ProductPage() {
                             }
                         });
                         setCustomizationValues(initialValues);
+                    }
+
+                    // Auto-initialize currentView if technical_views exists
+                    if (data.technical_views) {
+                        const views = data.technical_views;
+                        if (views.flat) setCurrentView('flat');
+                        else if (views.front) setCurrentView('front');
                     }
                 }
             } catch (err: any) {
@@ -665,11 +673,13 @@ export function ProductPage() {
                                             '13': { // Mug 1
                                                 templateUrl: '/mug_template.png',
                                                 style: { top: '16%', left: '5%', width: '90%', height: '68%' } // Full Wrap Area
+                                            },
+                                            '23': { // Sac weekender
+                                                style: { top: '5%', left: '5%', width: '90%', height: '90%' }
+                                            },
+                                            '24': { // Sac weekender personalisable
+                                                style: { top: '5%', left: '5%', width: '90%', height: '90%' }
                                             }
-                                            // '14' (Mug 2) removed as it would be duplicate if intended to share config, 
-                                            // or merge if needed. Assuming Mug 14 shares same config based on context or add distinctive config if unique.
-                                            // Actually, Mug 14 specific config was added previously. I should check if I am overwriting or duplicating.
-                                            // Refactoring to single entry for 14.
                                         };
 
                                         const previewConfig = PREVIEW_ZONES[getSafeString(product.id)] ||
@@ -718,10 +728,10 @@ export function ProductPage() {
                                                 // New Logic: Use explicit technical views
                                                 if (currentView === 'front') bgImage = product.technical_views.front || bgImage;
                                                 else if (currentView === 'back') bgImage = product.technical_views.back || bgImage;
-                                                else if (currentView === 'right') bgImage = product.technical_views.right || bgImage; // "Côté droit"
-                                                else if (currentView === 'left') bgImage = product.technical_views.left || bgImage;   // "Côté gauche"
-                                                else if (currentView === 'side') bgImage = product.technical_views.right || bgImage; // Fallback
-                                                // If currentView is null, strictly show selectedImage (Gallery Image)
+                                                else if (currentView === 'right') bgImage = product.technical_views.right || bgImage;
+                                                else if (currentView === 'left') bgImage = product.technical_views.left || bgImage;
+                                                else if (currentView === 'side') bgImage = product.technical_views.right || bgImage;
+                                                else if (currentView === 'flat') bgImage = product.technical_views.flat || bgImage;
                                                 else bgImage = selectedImage;
                                             } else {
                                                 // Legacy Fallback using array indices
