@@ -11,123 +11,77 @@ export function CategoryPage() {
     const subcategorySlug = rawSubcategorySlug ? decodeURIComponent(rawSubcategorySlug) : undefined;
     const [products, setProducts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const normalizedSlug = categorySlug?.toLowerCase();
 
-    // Handle potential typos or translation artifacts from URL
-    let targetSlug = subcategorySlug;
-    if (subcategorySlug === 'romains') targetSlug = 'romans';
-    if (subcategorySlug === 'pantalons') targetSlug = 'paniers';
+
+    const [categoryTitle, setCategoryTitle] = useState('');
+    const [subcategoryTitle, setSubcategoryTitle] = useState('');
 
     useEffect(() => {
         const fetchProducts = async () => {
             setIsLoading(true);
             try {
-                // Determine Category Label dynamically
-                let categoryLabel = '';
+                let resolvedCategoryLabel = '';
+                let resolvedSubcategoryLabel = '';
 
                 const normalizedSlug = categorySlug?.toLowerCase();
 
-                // 1. Try to find category in menu_items matching the slug
                 if (categorySlug && normalizedSlug !== 'soldes') {
-                    try {
-                        let categoryFound = false;
+                    // 1. Find the Category Label (Parent)
+                    const { data: catMenu } = await supabase
+                        .from('menu_items')
+                        .select('label')
+                        .or(`path.ilike.%/${categorySlug},path.ilike.%/${categorySlug}/`)
+                        .eq('parent_id', null)
+                        .limit(1);
 
-                        // Strategy A: Try exact Label Match first (e.g. slug "jouets" -> label "Jouets")
-                        // This fixes the issue where broad path match matched children first.
-                        const { data: labelData } = await supabase
+                    resolvedCategoryLabel = catMenu?.[0]?.label || (categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1));
+
+                    // 2. Find the Subcategory Label if slug exists
+                    if (subcategorySlug) {
+                        const { data: subMenu } = await supabase
                             .from('menu_items')
                             .select('label')
-                            .ilike('label', categorySlug)
+                            .ilike('path', `%${categorySlug}%${subcategorySlug}%`)
+                            .not('parent_id', 'is', null)
                             .limit(1);
 
-                        if (labelData && labelData.length > 0) {
-                            categoryLabel = labelData[0].label;
-                            targetSlug = undefined; // If a direct label match is found, no need for subcategory filtering
-                            categoryFound = true;
-                        }
-
-                        // Strategy B: Try Exact Path Match (e.g. slug "jouets" -> path "/category/jouets")
-                        if (!categoryFound) {
-                            const { data: pathData } = await supabase
-                                .from('menu_items')
-                                .select('label')
-                                .eq('path', `/category/${categorySlug}`)
-                                .limit(1);
-
-                            if (pathData && pathData.length > 0) {
-                                categoryLabel = pathData[0].label;
-                                targetSlug = undefined; // If a direct path match is found, no need for subcategory filtering
-                                categoryFound = true;
-                            }
-                        }
-
-                        // Strategy C: Fallback to Robust Path Search (only if A and B failed)
-                        if (!categoryFound) {
-                            let menuQuery = supabase.from('menu_items').select('label, path');
-
-                            if (subcategorySlug) {
-                                // For subcategories, we need the broad match
-                                menuQuery = menuQuery.ilike('path', `%${categorySlug}%${subcategorySlug}%`);
-                            } else {
-                                // For main categories, restrict to ending with the slug to avoid children
-                                // e.g. match ".../jouets" but NOT ".../jouets/bebe"
-                                menuQuery = menuQuery.or(`path.ilike.%/${categorySlug},path.ilike.%/${categorySlug}/`);
-                            }
-
-                            const { data: menuData } = await menuQuery.limit(1);
-
-                            if (menuData && menuData.length > 0) {
-                                categoryLabel = menuData[0].label;
-                                targetSlug = undefined; // If a menu item is found, no need for subcategory filtering
-                            } else {
-                                // Final Fallback: Capitalize
-                                categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
-                                if (categorySlug.toLowerCase() === 'ebook') categoryLabel = 'E-book';
-                            }
-                        }
-                    } catch (err: any) {
-                        console.error("Menu fetch error:", err);
-                        categoryLabel = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
+                        resolvedSubcategoryLabel = subMenu?.[0]?.label || (subcategorySlug.charAt(0).toUpperCase() + subcategorySlug.slice(1));
                     }
                 }
 
-                // 2. Fetch Products
+                setCategoryTitle(resolvedCategoryLabel);
+                setSubcategoryTitle(resolvedSubcategoryLabel);
+
+                // 3. Fetch Products
                 let query = supabase.from('products').select('*');
 
                 if (normalizedSlug === 'soldes') {
-                    // Filter for products where sale_price is not null and greater than 0
                     query = query.not('sale_price', 'is', null).gt('sale_price', 0);
-                } else if (categoryLabel) {
-                    // Search in both 'category' and 'subcategory' using ILIKE for case-insensitive matching
-                    // syntax: column.ilike.value
-                    // We use the simpler OR syntax string
-                    query = query.or(`category.ilike.%${categoryLabel}%,subcategory.ilike.%${categoryLabel}%`);
+                } else if (resolvedCategoryLabel) {
+                    // Start with broad category match
+                    query = query.or(`category.ilike.%${resolvedCategoryLabel}%,subcategory.ilike.%${resolvedCategoryLabel}%`);
                 }
 
                 const { data } = await query;
 
                 if (data && data.length > 0) {
                     let filtered = data;
-                    // Only apply local filtering if we DIDN'T find a specific menu match (targetSlug is still set)
-                    if (targetSlug) {
+                    // Apply Subcategory filter if present
+                    if (subcategorySlug) {
                         const normalize = (str: string) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '-') : '';
-                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(targetSlug!));
+
+                        // Try to match the subcategorySlug in the product's subcategory field
+                        filtered = data.filter((p: any) => p.subcategory && normalize(p.subcategory).includes(subcategorySlug));
+
+                        // Fallback: If no matches, maybe the resolved label is better?
+                        if (filtered.length === 0 && resolvedSubcategoryLabel) {
+                            filtered = data.filter((p: any) => p.subcategory && p.subcategory.toLowerCase().includes(resolvedSubcategoryLabel.toLowerCase()));
+                        }
                     }
                     setProducts(filtered);
                 } else {
-                    // Try loose match if exact label failed (e.g. user typed "Broderie" but DB has "broderie")
-                    if (categorySlug && !categoryLabel) {
-                        const { data: allProducts } = await supabase.from('products').select('*');
-                        if (allProducts) {
-                            const filtered = allProducts.filter(p =>
-                                p.category && p.category.toLowerCase().includes(categorySlug!.toLowerCase())
-                            );
-                            setProducts(filtered);
-                        } else {
-                            setProducts([]);
-                        }
-                    } else {
-                        setProducts([]);
-                    }
+                    setProducts([]);
                 }
 
             } catch (err: any) {
@@ -139,22 +93,18 @@ export function CategoryPage() {
         };
 
         fetchProducts();
-    }, [categorySlug, targetSlug]);
+    }, [categorySlug, subcategorySlug]);
 
-    const normalizedSlug = categorySlug?.toLowerCase();
+    const displayTitle = normalizedSlug === 'soldes' ? 'Soldes' :
+        (subcategoryTitle
+            ? `${categoryTitle} - ${subcategoryTitle}`
+            : (categoryTitle || "Notre Collection"));
 
-    // DEBUG LOG
-    console.log('DEBUG CATEGORY:', { categorySlug, normalizedSlug, productsCount: products.length });
-
-    const title = normalizedSlug === 'soldes' ? 'Soldes' :
-        (products.length > 0 && products[0].category
-            ? `${products[0].category} ${targetSlug ? '- ' + products[0].subcategory : ''}`
-            : "Notre Collection");
 
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
             <Helmet>
-                <title>{title} | Le Monde d'Elya</title>
+                <title>{displayTitle} | Le Monde d'Elya</title>
                 <meta name="description" content={`Découvrez notre sélection. Livraison rapide.`} />
             </Helmet>
             <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary mb-8 transition-colors">
@@ -163,7 +113,7 @@ export function CategoryPage() {
             </Link>
 
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 font-cursive mb-8 text-center">
-                {title}
+                {displayTitle}
             </h1>
 
             {isLoading ? (
