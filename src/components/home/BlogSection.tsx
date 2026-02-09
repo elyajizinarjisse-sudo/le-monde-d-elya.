@@ -31,7 +31,7 @@ export function BlogSection({ posts }: BlogSectionProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {posts.map((post) => (
-                        <Link to={`/blog/${post.slug}`} key={post.id} className="group cursor-pointer">
+                        <Link to={`/blog/${post.id}`} key={post.id} className="group cursor-pointer">
                             <div className="mb-4 overflow-hidden rounded-2xl shadow-sm aspect-[4/3]">
                                 <img
                                     src={post.image}

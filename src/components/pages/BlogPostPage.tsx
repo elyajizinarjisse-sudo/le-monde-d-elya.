@@ -4,6 +4,8 @@ import { ArrowLeft, Clock, Calendar, User, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
+import { BLOG_POSTS } from '../../data/mockData';
+
 interface BlogPost {
     id: number;
     title: string;
@@ -31,13 +33,18 @@ export function BlogPostPage() {
                     .eq('id', id)
                     .single();
 
-                if (error) throw error;
-                if (data) setPost(data);
+                if (error || !data) {
+                    // Fallback to mock data
+                    const mockPost = BLOG_POSTS.find(p => String(p.id) === String(id));
+                    if (mockPost) setPost(mockPost as any);
+                    else throw new Error('Post not found');
+                } else {
+                    setPost(data);
+                }
             } catch (error) {
                 console.error('Error fetching post:', error);
-                // Fallback to mock data if DB fails or not found (optional, but good for stability)
-                // const mockPost = BLOG_POSTS.find(p => p.id === Number(id));
-                // if (mockPost) setPost(mockPost as any);
+                const mockPost = BLOG_POSTS.find(p => String(p.id) === String(id));
+                if (mockPost) setPost(mockPost as any);
             } finally {
                 setLoading(false);
             }

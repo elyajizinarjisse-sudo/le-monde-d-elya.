@@ -1,7 +1,7 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Star, Heart, ShoppingBag, Truck, ShieldCheck, Loader2 } from 'lucide-react';
+import { ArrowLeft, Star, Heart, ShoppingBag, Truck, ShieldCheck, Loader2, Image as ImageIcon, Type } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../lib/currency';
@@ -34,9 +34,7 @@ export function ProductPage() {
     const { id } = useParams();
     const { addToCart, setIsCartOpen } = useCart();
 
-    // Preview Container Ref for Drag and Drop
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [dragging, setDragging] = useState<'text' | 'image' | null>(null);
+    const [dragging, setDragging] = useState<{ type: 'text' | 'image'; id: string } | null>(null);
 
     const [product, setProduct] = useState<FullProduct | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -45,13 +43,11 @@ export function ProductPage() {
     const [customizationValues, setCustomizationValues] = useState<Record<string, string>>({});
     const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
 
-    // Scaling
-    const [imageScale, setImageScale] = useState<number>(1.0);
-    const [textScale, setTextScale] = useState<number>(1.0);
-
-    // Positioning
-    const [textPosition, setTextPosition] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-    const [imagePosition, setImagePosition] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+    // Positioning & Scaling (Per-Option)
+    const [textPositions, setTextPositions] = useState<Record<string, { x: number; y: number }>>({});
+    const [imagePositions, setImagePositions] = useState<Record<string, { x: number; y: number }>>({});
+    const [textScales, setTextScales] = useState<Record<string, number>>({});
+    const [imageScales, setImageScales] = useState<Record<string, number>>({});
 
     // State for view switching (front, back, left, right) - specific for Casquette
     // Initialize to null so it defaults to the Main Marketing Image (selectedImage)
@@ -108,6 +104,9 @@ export function ProductPage() {
                     // Safe Customization Init
                     if (data.customization_options && Array.isArray(data.customization_options)) {
                         const initialValues: Record<string, string> = {};
+                        const initialPositions: Record<string, { x: number; y: number }> = {};
+                        const initialScales: Record<string, number> = {};
+
                         data.customization_options.forEach((opt: any) => {
                             const safeLabel = getSafeString(opt.label);
                             if (opt.type === 'text') initialValues[safeLabel] = '';
@@ -115,8 +114,14 @@ export function ProductPage() {
                                 const firstOpt = opt.options[0];
                                 initialValues[safeLabel] = getSafeString(firstOpt);
                             }
+                            initialPositions[safeLabel] = { x: 50, y: 50 };
+                            initialScales[safeLabel] = 1.0;
                         });
                         setCustomizationValues(initialValues);
+                        setTextPositions(initialPositions);
+                        setImagePositions(initialPositions);
+                        setTextScales(initialScales);
+                        setImageScales(initialScales);
                     }
 
                     // Auto-initialize currentView if technical_views exists
@@ -221,16 +226,25 @@ export function ProductPage() {
         : 0;
 
     // DRAG AND DROP HANDLERS
-    const handleMouseDown = (e: React.MouseEvent, type: 'text' | 'image') => {
+    const handleMouseDown = (e: React.MouseEvent, type: 'text' | 'image', id: string) => {
         e.stopPropagation();
         e.preventDefault();
-        setDragging(type);
+        setDragging({ type, id });
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!dragging || !containerRef.current) return;
+        if (!dragging) return;
 
-        const rect = containerRef.current.getBoundingClientRect();
+        // Find the container ref based on the event target or parent
+        // Actually we use a single global containerRef for the whole preview area
+        // but if we have multiple zones, maybe we should use the zone's rect?
+        // No, simplest is to use the direct parent of the dragged item if it has a ref,
+        // but we'll stick to a common pattern.
+
+        const target = (e.target as HTMLElement).closest('.preview-zone-container');
+        if (!target) return;
+
+        const rect = target.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
 
@@ -238,10 +252,10 @@ export function ProductPage() {
         const clampedX = Math.max(0, Math.min(100, x));
         const clampedY = Math.max(0, Math.min(100, y));
 
-        if (dragging === 'text') {
-            setTextPosition({ x: clampedX, y: clampedY });
-        } else if (dragging === 'image') {
-            setImagePosition({ x: clampedX, y: clampedY });
+        if (dragging.type === 'text') {
+            setTextPositions(prev => ({ ...prev, [dragging.id]: { x: clampedX, y: clampedY } }));
+        } else if (dragging.type === 'image') {
+            setImagePositions(prev => ({ ...prev, [dragging.id]: { x: clampedX, y: clampedY } }));
         }
     };
 
@@ -642,7 +656,6 @@ export function ProductPage() {
                             {/* Duplicate Controls Removed */}
 
                             {/* Live Preview */}
-                            {/* Visual Preview (Configuration Based) */}
                             {(Object.keys(customizationValues).length > 0 || Object.values(uploadingFiles).some(v => v)) && (
                                 <div className="mb-6 animate-scale-in">
                                     <h3 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
@@ -650,402 +663,188 @@ export function ProductPage() {
                                     </h3>
 
                                     {(() => {
-                                        // PREVIEW CONFIGURATION
-                                        const PREVIEW_ZONES: Record<string, { templateUrl?: string; style: React.CSSProperties }> = {
-                                            '15': { // Casquette Personnalisable
-                                                style: { top: '20%', left: '15%', width: '70%', height: '55%' }
-                                            },
-                                            '16': { // Casquette Unisexe (Share same template)
-                                                style: { top: '20%', left: '15%', width: '70%', height: '55%' }
-                                            },
-                                            '14': { // Custom Mug Céramique
-                                                // Center of the mug face
-                                                style: { top: '25%', left: '25%', width: '50%', height: '50%' }
-                                            },
-                                            '11': { // Custom T-shirt Unisex Bio
-                                                // No template URL yet, uses product image. 
-                                                // Adjust zone to chest area.
-                                                style: { top: '20%', left: '28%', width: '44%', height: '40%' }
-                                            },
-                                            '10': { // Doudou
-                                                style: { top: '55%', left: '25%', width: '50%', height: '20%' } // Tummy Area
-                                            },
-                                            '13': { // Mug 1
-                                                templateUrl: '/mug_template.png',
-                                                style: { top: '16%', left: '5%', width: '90%', height: '68%' } // Full Wrap Area
-                                            },
-                                            '23': { // Sac weekender
-                                                style: { top: '5%', left: '5%', width: '90%', height: '90%' }
-                                            },
-                                            '24': { // Sac weekender personalisable
-                                                style: { top: '5%', left: '5%', width: '90%', height: '90%' }
-                                            }
+                                        const PREVIEW_ZONES_HARDCODED: Record<string, { style: React.CSSProperties }> = {
+                                            '15': { style: { top: '20%', left: '15%', width: '70%', height: '55%' } },
+                                            '16': { style: { top: '20%', left: '15%', width: '70%', height: '55%' } },
+                                            '14': { style: { top: '25%', left: '25%', width: '50%', height: '50%' } },
+                                            '11': { style: { top: '20%', left: '28%', width: '44%', height: '40%' } },
+                                            '10': { style: { top: '55%', left: '25%', width: '50%', height: '20%' } },
+                                            '13': { style: { top: '16%', left: '5%', width: '90%', height: '68%' } },
+                                            '23': { style: { top: '5%', left: '5%', width: '90%', height: '90%' } },
+                                            '24': { style: { top: '5%', left: '5%', width: '90%', height: '90%' } }
                                         };
 
-                                        const previewConfig = PREVIEW_ZONES[getSafeString(product.id)] ||
-                                            ((product.category === 'Impressions' || product.category === 'Affiches' || product.category?.toLowerCase() === 'poster' || (product.subcategory && (product.subcategory.includes('Affiches') || product.subcategory.toLowerCase().includes('poster'))) || getSafeString(product.id) === '22') ? {
-                                                // Default Poster Config: Full area
-                                                style: { top: '0%', left: '0%', width: '100%', height: '100%' }
-                                            } : undefined);
+                                        let bgImage = selectedImage;
+                                        const tv = product.technical_views as any;
+                                        if (tv && Object.keys(tv).length > 0) {
+                                            if (currentView === 'front') bgImage = tv.front || bgImage;
+                                            else if (currentView === 'back') bgImage = tv.back || bgImage;
+                                            else if (currentView === 'right') bgImage = tv.right || bgImage;
+                                            else if (currentView === 'left') bgImage = tv.left || bgImage;
+                                            else if (currentView === 'side') bgImage = tv.right || bgImage;
+                                            else if (currentView === 'flat') bgImage = tv.flat || bgImage;
+                                        }
 
-                                        if (previewConfig) {
-                                            // CALCULATE ASPECT RATIO
-                                            let aspectRatio = '1/1'; // Default
-                                            const lowerCat = product.category?.toLowerCase() || '';
-                                            const lowerSub = product.subcategory?.toLowerCase() || '';
-                                            const isPoster = lowerCat === 'impressions' || lowerCat === 'affiches' || lowerCat === 'poster' || lowerSub.includes('affiches') || lowerSub.includes('poster') || getSafeString(product.id) === '22';
+                                        let aspectRatio = '1/1';
+                                        const lowerCat = product.category?.toLowerCase() || '';
+                                        const lowerSub = product.subcategory?.toLowerCase() || '';
+                                        const isPoster = lowerCat === 'impressions' || lowerCat === 'affiches' || lowerCat === 'poster' || lowerSub.includes('affiches') || lowerSub.includes('poster') || getSafeString(product.id) === '22';
 
-                                            if (isPoster && selectedVariant) {
-                                                // Robust regex: Match two numbers separated by 'x' with any non-digit chars in between
-                                                const match = selectedVariant.match(/(\d+)\D+x\D+(\d+)/i);
-
-                                                if (match) {
-                                                    let w = parseInt(match[1]);
-                                                    let h = parseInt(match[2]);
-
-                                                    // Explicit Orientation Override
-                                                    const lowerVariant = selectedVariant.toLowerCase();
-                                                    if (lowerVariant.includes('horizontal') || lowerVariant.includes('paysage')) {
-                                                        // Ensure Width > Height
-                                                        if (h > w) { const temp = w; w = h; h = temp; }
-                                                    } else if (lowerVariant.includes('vertical') || lowerVariant.includes('portrait')) {
-                                                        // Ensure Height > Width
-                                                        if (w > h) { const temp = w; w = h; h = temp; }
-                                                    }
-
-                                                    if (!isNaN(w) && !isNaN(h) && h !== 0) {
-                                                        aspectRatio = `${w}/${h}`;
-                                                    }
-                                                }
+                                        if (isPoster && selectedVariant) {
+                                            const match = selectedVariant.match(/(\d+)\D+x\D+(\d+)/i);
+                                            if (match) {
+                                                let w = parseInt(match[1]);
+                                                let h = parseInt(match[2]);
+                                                const lowerV = selectedVariant.toLowerCase();
+                                                if (lowerV.includes('horizontal') || lowerV.includes('paysage')) { if (h > w) { const tmp = w; w = h; h = tmp; } }
+                                                else if (lowerV.includes('vertical') || lowerV.includes('portrait')) { if (w > h) { const tmp = w; w = h; h = tmp; } }
+                                                if (!isNaN(w) && !isNaN(h) && h !== 0) aspectRatio = `${w}/${h}`;
                                             }
-                                            // VIEW SWITCHING LOGIC (Casquette) uses top-level currentView state
+                                        }
 
-                                            // Determine background image based on View
-                                            // PRIORITIZE Technical Views from new column
-                                            let bgImage = selectedImage; // Default to main image
+                                        let activeZones: { id: string; label?: string; style: React.CSSProperties }[] = [];
+                                        if (tv?.zones && Array.isArray(tv.zones)) {
+                                            activeZones = tv.zones.map((z: any) => ({
+                                                id: z.id || z.label || Math.random().toString(),
+                                                label: z.label || z.ticket || z.id,
+                                                style: { top: `${z.y}%`, left: `${z.x}%`, width: `${z.width}%`, height: `${z.height}%` }
+                                            }));
+                                        } else {
+                                            const hardcoded = PREVIEW_ZONES_HARDCODED[getSafeString(product.id)];
+                                            if (hardcoded) activeZones = [{ id: 'default', style: hardcoded.style }];
+                                            else if (isPoster) activeZones = [{ id: 'default', style: { top: '0%', left: '0%', width: '100%', height: '100%' } }];
+                                        }
 
-                                            if (product.technical_views && Object.keys(product.technical_views).length > 0) {
-                                                // New Logic: Use explicit technical views
-                                                if (currentView === 'front') bgImage = product.technical_views.front || bgImage;
-                                                else if (currentView === 'back') bgImage = product.technical_views.back || bgImage;
-                                                else if (currentView === 'right') bgImage = product.technical_views.right || bgImage;
-                                                else if (currentView === 'left') bgImage = product.technical_views.left || bgImage;
-                                                else if (currentView === 'side') bgImage = product.technical_views.right || bgImage;
-                                                else if (currentView === 'flat') bgImage = product.technical_views.flat || bgImage;
-                                                else bgImage = selectedImage;
-                                            } else {
-                                                // Legacy Fallback using array indices
-                                                bgImage = previewConfig.templateUrl || selectedImage;
-                                                if (currentView === 'back' && viewImages.length > 1) {
-                                                    bgImage = viewImages[1];
-                                                } else if (currentView === 'right' && viewImages.length > 2) {
-                                                    bgImage = viewImages[2];
-                                                } else if (currentView === 'left' && viewImages.length > 3) {
-                                                    bgImage = viewImages[3];
-                                                } else if (currentView === 'front' && viewImages.length > 0) {
-                                                    bgImage = viewImages[0];
-                                                }
-                                            }
+                                        if (activeZones.length === 0) return null;
 
-                                            return (
-                                                <div
-                                                    className="relative w-full bg-gray-100 rounded-xl overflow-hidden border border-gray-200 transition-all duration-300"
-                                                    style={{ aspectRatio }}
-                                                >
-                                                    {/* View Switching Buttons (Only for Casquette) */}
-                                                    {(getSafeString(product.id) === '15' || getSafeString(product.id) === '16') && viewImages.length >= 4 && (
-                                                        <div className="absolute bottom-4 left-0 right-0 flex flex-wrap justify-center gap-2 z-30 pointer-events-auto px-2">
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('front'); }}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'front' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
-                                                            >
-                                                                Face avant
+                                        return (
+                                            <div className="relative w-full bg-gray-100 rounded-xl overflow-hidden border border-gray-200" style={{ aspectRatio }}>
+                                                {isCasquette && viewImages.length >= 4 && (
+                                                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-30 pointer-events-auto">
+                                                        {['front', 'back', 'right', 'left'].map(v => (
+                                                            <button key={v} onClick={() => setCurrentView(v)} className={`px-2 py-1 text-[10px] font-bold rounded-full transition-colors ${currentView === v ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700'}`}>
+                                                                {v.toUpperCase()}
                                                             </button>
+                                                        ))}
+                                                    </div>
+                                                )}
 
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('back'); }}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'back' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
-                                                            >
-                                                                Dos
-                                                            </button>
+                                                <img src={bgImage} alt="Preview" className="absolute inset-0 w-full h-full object-contain z-10" />
 
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('right'); }}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'right' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
-                                                            >
-                                                                Côté droit
-                                                            </button>
+                                                {activeZones.map(zone => {
+                                                    const matchZone = (optLabel: string) => {
+                                                        if (activeZones.length <= 1) return true;
+                                                        const zl = (zone.label || zone.id || "").toLowerCase();
+                                                        const ol = optLabel.toLowerCase();
+                                                        return zl.includes(ol) || ol.includes(zl)
+                                                            || (zl.includes("top") && ol.includes("devant"))
+                                                            || (zl.includes("bottom") && ol.includes("dos"))
+                                                            || (zl.includes("devant") && ol.includes("top"))
+                                                            || (zl.includes("dos") && ol.includes("bottom"));
+                                                    };
 
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setCurrentView('left'); }}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${currentView === 'left' ? 'bg-indigo-600 text-white' : 'bg-white/80 text-gray-700 hover:bg-white'}`}
-                                                            >
-                                                                Côté gauche
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {/* Background Layer */}
-                                                    <img
-                                                        src={bgImage}
-                                                        alt="Aperçu"
-                                                        className="absolute inset-0 w-full h-full object-contain z-10"
-                                                    />
+                                                    return (
+                                                        <div key={zone.id} className="absolute z-20 flex items-center justify-center preview-zone-container" style={{ ...zone.style }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+                                                            {Object.entries(customizationValues).map(([key, value]) => {
+                                                                if (!value || !matchZone(key)) return null;
+                                                                const isUrl = value.startsWith('http');
+                                                                const option = product.customization_options?.find(o => getSafeString(o.label) === key);
+                                                                if (!isUrl && option && option.type !== 'text') return null;
 
-                                                    {/* Customization Overlay Area - Only show on Front view for Casquettes to avoid ghosting */}
-                                                    {/* Customization Overlay Area - Always active, internal filtering logic handles view visibility */}
-                                                    {(true) && (
-                                                        <div
-                                                            className="absolute z-20 flex items-center justify-center pointer-events-none"
-                                                            style={{
-                                                                ...previewConfig.style,
-                                                            }}
-                                                        >
-                                                            {/* Pointer Events Wrapper for Interaction */}
-                                                            <div
-                                                                ref={containerRef}
-                                                                className="relative w-full h-full pointer-events-auto cursor-crosshair" // Cursor indicates interactive area
-                                                                onMouseMove={handleMouseMove}
-                                                                onMouseUp={handleMouseUp}
-                                                                onMouseLeave={handleMouseUp} // Stop drag if leaving container
-                                                            >
-
-                                                                {/* Image Layer */}
-                                                                {Object.entries(customizationValues).map(([key, value]) => {
-                                                                    if (!value || !value.startsWith('http')) return null;
-
-                                                                    // Image View Filtering
+                                                                // View Filtering for Casquette
+                                                                if (isCasquette) {
                                                                     const k = key.toLowerCase();
-                                                                    if (isCasquette) {
-                                                                        const currentViewSafe = currentView || 'front';
-                                                                        if ((k.includes('face') || k.includes('front')) && currentViewSafe !== 'front') return null;
-                                                                        if ((k.includes('dos') || k.includes('back') || k.includes('arrière')) && currentViewSafe !== 'back') return null;
-                                                                        if ((k.includes('droit') || k.includes('right')) && currentViewSafe !== 'right') return null;
-                                                                        if ((k.includes('gauche') || k.includes('left')) && currentViewSafe !== 'left') return null;
-                                                                    }
+                                                                    const cv = currentView || 'front';
+                                                                    if ((k.includes('face') || k.includes('front')) && cv !== 'front') return null;
+                                                                    if ((k.includes('dos') || k.includes('back')) && cv !== 'back') return null;
+                                                                }
 
+                                                                if (isUrl) {
+                                                                    const pos = imagePositions[key] || { x: 50, y: 50 };
+                                                                    const sc = imageScales[key] || 1.0;
                                                                     return (
-                                                                        <div
-                                                                            key={key}
-                                                                            className="absolute origin-center cursor-move hover:border hover:border-dashed hover:border-indigo-400"
-                                                                            style={{
-                                                                                top: `${imagePosition.y}%`,
-                                                                                left: `${imagePosition.x}%`,
-                                                                                width: '50%', // Fixed base width relative to zone
-                                                                                transform: `translate(-50%, -50%) scale(${imageScale})`, // Zoom via transform
-                                                                                zIndex: 10,
-                                                                            }}
-                                                                            onMouseDown={(e) => handleMouseDown(e, 'image')}
-                                                                        >
-                                                                            <img
-                                                                                src={value}
-                                                                                alt="Logo"
-                                                                                className="w-full h-auto object-contain pointer-events-none"
-                                                                            />
+                                                                        <div key={key} className="absolute origin-center cursor-move hover:border hover:border-dashed hover:border-indigo-400" style={{ top: `${pos.y}%`, left: `${pos.x}%`, width: '40%', transform: `translate(-50%, -50%) scale(${sc})`, zIndex: 10 }} onMouseDown={(e) => handleMouseDown(e, 'image', key)}>
+                                                                            <img src={value} alt="logo" className="w-full h-auto pointer-events-none" />
                                                                         </div>
                                                                     );
-                                                                })}
+                                                                } else {
+                                                                    const pos = textPositions[key] || { x: 50, y: 50 };
+                                                                    const sc = textScales[key] || 1.0;
+                                                                    const fontLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
+                                                                    const selectedFont = fontLabel ? customizationValues[fontLabel] : "";
+                                                                    let fontFamily = "inherit";
+                                                                    const f = selectedFont?.toLowerCase() || "";
+                                                                    if (f.includes("cursif") || f.includes("great vibes") || f.includes("cursive")) fontFamily = "'Great Vibes', cursive";
+                                                                    else if (f.includes("bâton") || f.includes("roboto") || f.includes("sans")) fontFamily = "'Roboto', sans-serif";
 
-                                                                {/* Text Layer */}
-                                                                {(() => {
-                                                                    const validTextEntries = Object.entries(customizationValues).filter(([key, value]) => {
-                                                                        if (!value) return false;
-                                                                        const k = key.toLowerCase();
-                                                                        const isExcluded = k.includes("couleur") || k.includes("police") || k.includes("color") || k.includes("font") || k.includes("taille") || k.includes("size");
-                                                                        if (isExcluded) return false;
-                                                                        const option = product.customization_options?.find(o => getSafeString(o.label) === key);
-                                                                        if (option && option.type !== 'text') return false;
-
-                                                                        // MULTI-VIEW FILTERING:
-                                                                        // Only show "Face/Front" on 'front' view (or if view is null/undefined default)
-                                                                        // Only show "Dos/Back" on 'back' view
-                                                                        // Only show "Droit/Right" on 'right' view
-                                                                        // Only show "Gauche/Left" on 'left' view
-                                                                        if (isCasquette) {
-                                                                            const currentViewSafe = currentView || 'front'; // Default to front if null
-
-                                                                            if ((k.includes('face') || k.includes('front')) && currentViewSafe !== 'front') return false;
-                                                                            if ((k.includes('dos') || k.includes('back') || k.includes('arrière')) && currentViewSafe !== 'back') return false;
-                                                                            if ((k.includes('droit') || k.includes('right')) && currentViewSafe !== 'right') return false;
-                                                                            if ((k.includes('gauche') || k.includes('left')) && currentViewSafe !== 'left') return false;
-                                                                        }
-
-                                                                        return true;
-                                                                    });
-
+                                                                    const colorLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
+                                                                    const selectedColor = colorLabel ? customizationValues[colorLabel] : "black";
+                                                                    const colorMap: Record<string, string> = { "Noir": "black", "Blanc": "white", "Rouge": "#D32F2F" };
                                                                     return (
-                                                                        <>
-                                                                            {validTextEntries.length === 0 && (
-                                                                                <div
-                                                                                    className="absolute transform -translate-x-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-sm border border-gray-300 rounded px-2 py-1 flex items-center justify-center pointer-events-none"
-                                                                                    style={{
-                                                                                        top: `${textPosition.y}%`,
-                                                                                        left: `${textPosition.x}%`,
-                                                                                        minWidth: '80px',
-                                                                                        zIndex: 5
-                                                                                    }}
-                                                                                >
-                                                                                    <span className="text-[10px] text-gray-600 font-bold uppercase opacity-70">Zone Texte</span>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {validTextEntries.map(([key, value]) => {
-                                                                                // Font Logic
-                                                                                const fontOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("police"))?.label;
-                                                                                const selectedFont = fontOptionLabel ? customizationValues[fontOptionLabel] : "";
-                                                                                let fontFamily = "inherit";
-                                                                                let fontWeight = "normal";
-
-                                                                                const f = selectedFont?.toLowerCase() || "";
-
-                                                                                // Mapping for French ("bâton", "cursif", "manuscrit") AND English ("Modern Sans", "Classic Serif", "Handwritten", "Bold Impact")
-                                                                                if (f.includes("cursif") || f.includes("great vibes") || f.includes("cursive")) {
-                                                                                    fontFamily = "'Great Vibes', cursive";
-                                                                                } else if (f.includes("bâton") || f.includes("modern sans") || f.includes("sans")) {
-                                                                                    fontFamily = "'Roboto', sans-serif";
-                                                                                } else if (f.includes("manuscrit") || f.includes("handwritten") || f.includes("handlee")) {
-                                                                                    fontFamily = "'Handlee', cursive";
-                                                                                } else if (f.includes("serif") || f.includes("classic")) {
-                                                                                    fontFamily = "'Times New Roman', serif";
-                                                                                } else if (f.includes("bold") || f.includes("impact")) {
-                                                                                    fontFamily = "'Impact', sans-serif";
-                                                                                    fontWeight = "bold";
-                                                                                }
-
-                                                                                // Color Logic
-                                                                                const colorOptionLabel = product.customization_options?.find(o => o.label.toLowerCase().includes("couleur"))?.label;
-                                                                                const selectedColor = colorOptionLabel ? customizationValues[colorOptionLabel] : "black";
-                                                                                const colorMap: Record<string, string> = {
-                                                                                    "Noir": "black", "Black": "black",
-                                                                                    "Blanc": "white", "White": "white",
-                                                                                    "Rouge": "#D32F2F", "Red": "#D32F2F",
-                                                                                    "Bleu Marine": "#1A237E", "Bleu Marin": "#1A237E", "Navy": "#1A237E",
-                                                                                    "Or": "#FFD700", "Gold": "#FFD700",
-                                                                                    "Argent": "#C0C0C0", "Silver": "#C0C0C0",
-                                                                                    "Rose": "#E91E63", "Rose Pâle": "#FFB6C1", "Pink": "#E91E63",
-                                                                                    "Bleu": "#1E88E5", "Blue": "#1E88E5",
-                                                                                    "Vert": "#43A047", "Green": "#43A047",
-                                                                                    "Chocolat": "#5D4037", "Chocolate": "#5D4037",
-                                                                                    "Violet": "#9C27B0", "Purple": "#9C27B0",
-                                                                                    "Jaune": "#FFD600", "Yellow": "#FFD600",
-                                                                                    "Orange": "#FF5722",
-                                                                                    "Gris": "#757575", "Grey": "#757575", "Gray": "#757575",
-                                                                                    "Beige": "#D4C4A8",
-                                                                                    "Turquoise": "#00BCD4", "Cyan": "#00BCD4",
-                                                                                    "Bordeaux": "#800020", "Burgundy": "#800020",
-                                                                                    "Rose Vif": "#FF4081", "Hot Pink": "#FF4081",
-                                                                                    "Vert Sapin": "#2E7D32", "Forest Green": "#2E7D32",
-                                                                                    "Bleu Ciel": "#42A5F5", "Sky Blue": "#42A5F5",
-                                                                                    "Lavande": "#B39DDB", "Lavender": "#B39DDB"
-                                                                                };
-                                                                                const cssColor = colorMap[selectedColor] || selectedColor;
-
-                                                                                return (
-                                                                                    <div
-                                                                                        key={key}
-                                                                                        className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-pre shadow-sm border border-transparent hover:border-dashed hover:border-indigo-400 cursor-move"
-                                                                                        style={{
-                                                                                            top: `${textPosition.y}%`,
-                                                                                            left: `${textPosition.x}%`,
-                                                                                            zIndex: 50, // Explicit Z-Index VERY HIGH
-                                                                                            transform: `translate(-50%, -50%) scale(${textScale})` // Text Scale
-                                                                                        }}
-                                                                                        onMouseDown={(e) => handleMouseDown(e, 'text')}
-                                                                                    >
-                                                                                        <span style={{ fontFamily, fontWeight, color: cssColor, fontSize: 'clamp(12px, 4vw, 32px)', lineHeight: 1.2, textAlign: 'center' }}>
-                                                                                            {value}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </>
+                                                                        <div key={key} className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-nowrap cursor-move hover:border hover:border-dashed hover:border-indigo-400" style={{ top: `${pos.y}%`, left: `${pos.x}%`, zIndex: 11, transform: `translate(-50%, -50%) scale(${sc})` }} onMouseDown={(e) => handleMouseDown(e, 'text', key)}>
+                                                                            <span style={{ fontFamily, color: colorMap[selectedColor] || selectedColor, fontSize: 'clamp(12px, 3vw, 24px)' }}>{value}</span>
+                                                                        </div>
                                                                     );
-                                                                })()}
-                                                            </div >
-                                                        </div >
-                                                    )}
-                                                    {/* Pointer events wrapper end */}
-                                                </div>
-
-                                            );
-                                        } else {
-                                            // GENERIC FALLBACK LIST
-                                            return (
-                                                <div className="bg-white p-4 rounded-lg border border-indigo-100/50 shadow-inner space-y-4">
-                                                    {Object.entries(customizationValues).map(([key, value]) => {
-                                                        const safeValue = getSafeString(value);
-                                                        if (!safeValue) return null;
-                                                        const isUrl = safeValue.startsWith('http');
-                                                        return (
-                                                            <div key={key} className="flex flex-col gap-1">
-                                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{key}</span>
-                                                                {isUrl ? (
-                                                                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
-                                                                        <img src={value} alt="Preview" className="w-full h-full object-cover" />
-                                                                    </div>
-                                                                ) : (
-                                                                    <p className="text-indigo-600 bg-indigo-50 px-4 py-3 rounded-lg border border-indigo-100 inline-block font-medium">
-                                                                        {safeValue}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            );
-                                        }
+                                                                }
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
                                     })()}
 
-                                    {/* Positioning Controls */}
-                                    <div className="mt-4 space-y-4">
-                                        {Object.values(customizationValues).some(v => v && !v.startsWith('http')) && (
-                                            <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg">
-                                                <h4 className="text-xs font-bold text-indigo-900 mb-2 uppercase tracking-wide">Position & Taille Texte</h4>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Horizontal (X)</label>
-                                                        <input type="range" min="0" max="100" value={textPosition.x} onChange={e => setTextPosition(p => ({ ...p, x: parseInt(e.target.value) }))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Vertical (Y)</label>
-                                                        <input type="range" min="0" max="100" value={textPosition.y} onChange={e => setTextPosition(p => ({ ...p, y: parseInt(e.target.value) }))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                                    </div>
-                                                </div>
-                                                <div className="mt-2">
-                                                    <label className="text-[10px] text-gray-500 block mb-1 flex justify-between">
-                                                        <span>Echelle (Zoom Texte)</span>
-                                                        <span>{Math.round(textScale * 100)}%</span>
-                                                    </label>
-                                                    <input type="range" min="0.5" max="3.0" step="0.1" value={textScale} onChange={e => setTextScale(parseFloat(e.target.value))} className="w-full accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                                </div>
-                                            </div>
-                                        )}
+                                    <div className="mt-4 space-y-3">
+                                        {Object.entries(customizationValues).map(([key, value]) => {
+                                            if (!value) return null;
+                                            const isUrl = value.startsWith('http');
+                                            const option = product.customization_options?.find(o => getSafeString(o.label) === key);
+                                            if (!isUrl && option && option.type !== 'text') return null;
 
-                                        {Object.values(customizationValues).some(v => v && v.startsWith('http')) && (
-                                            <div className="p-3 bg-purple-50/50 border border-purple-100 rounded-lg">
-                                                <h4 className="text-xs font-bold text-purple-900 mb-2 uppercase tracking-wide">Position & Taille Image</h4>
-                                                <div className="grid grid-cols-2 gap-4 mb-2">
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Horizontal (X)</label>
-                                                        <input type="range" min="0" max="100" value={imagePosition.x} onChange={e => setImagePosition(p => ({ ...p, x: parseInt(e.target.value) }))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                            const isDraggingThis = dragging?.id === key;
+
+                                            return (
+                                                <div key={key} className={`p-3 rounded-lg border transition-all ${isDraggingThis ? 'bg-indigo-50 border-indigo-300 shadow-md' : 'bg-gray-50 border-gray-100'}`}>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <span className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                                                            {isUrl ? <ImageIcon size={12} /> : <Type size={12} />} {key}
+                                                        </span>
+                                                        <span className="text-[10px] text-indigo-600 font-medium">Contrôles</span>
                                                     </div>
-                                                    <div>
-                                                        <label className="text-[10px] text-gray-500 block mb-1">Vertical (Y)</label>
-                                                        <input type="range" min="0" max="100" value={imagePosition.y} onChange={e => setImagePosition(p => ({ ...p, y: parseInt(e.target.value) }))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between text-[8px] text-gray-400"><span>Pos X</span><span>{Math.round(isUrl ? (imagePositions[key]?.x || 50) : (textPositions[key]?.x || 50))}%</span></div>
+                                                            <input type="range" min="0" max="100" value={isUrl ? (imagePositions[key]?.x || 50) : (textPositions[key]?.x || 50)} onChange={e => {
+                                                                const val = parseInt(e.target.value);
+                                                                if (isUrl) setImagePositions(p => ({ ...p, [key]: { ...p[key], x: val } }));
+                                                                else setTextPositions(p => ({ ...p, [key]: { ...p[key], x: val } }));
+                                                            }} className="w-full accent-indigo-600 h-1 bg-gray-200 rounded-full appearance-none" />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between text-[8px] text-gray-400"><span>Pos Y</span><span>{Math.round(isUrl ? (imagePositions[key]?.y || 50) : (textPositions[key]?.y || 50))}%</span></div>
+                                                            <input type="range" min="0" max="100" value={isUrl ? (imagePositions[key]?.y || 50) : (textPositions[key]?.y || 50)} onChange={e => {
+                                                                const val = parseInt(e.target.value);
+                                                                if (isUrl) setImagePositions(p => ({ ...p, [key]: { ...p[key], y: val } }));
+                                                                else setTextPositions(p => ({ ...p, [key]: { ...p[key], y: val } }));
+                                                            }} className="w-full accent-indigo-600 h-1 bg-gray-200 rounded-full appearance-none" />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-2 space-y-1">
+                                                        <div className="flex justify-between text-[8px] text-gray-400"><span>Zoom</span><span>{Math.round((isUrl ? (imageScales[key] || 1) : (textScales[key] || 1)) * 100)}%</span></div>
+                                                        <input type="range" min="0.2" max="3.0" step="0.1" value={isUrl ? (imageScales[key] || 1) : (textScales[key] || 1)} onChange={e => {
+                                                            const val = parseFloat(e.target.value);
+                                                            if (isUrl) setImageScales(p => ({ ...p, [key]: val }));
+                                                            else setTextScales(p => ({ ...p, [key]: val }));
+                                                        }} className="w-full accent-purple-600 h-1 bg-gray-200 rounded-full appearance-none" />
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <label className="text-[10px] text-gray-500 block mb-1 flex justify-between">
-                                                        <span>Echelle (Zoom)</span>
-                                                        <span>{Math.round(imageScale * 100)}%</span>
-                                                    </label>
-                                                    <input type="range" min="0.2" max="3.0" step="0.1" value={imageScale} onChange={e => setImageScale(parseFloat(e.target.value))} className="w-full accent-purple-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                            )
-                            }
+                            )}
 
                             {/* Variants */}
                             {

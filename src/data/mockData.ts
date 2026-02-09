@@ -22,7 +22,7 @@ export const BLOG_POSTS: BlogPost[] = [
         id: 1,
         title: "5 Activités Montessori à la maison",
         excerpt: "Découvrez comment encourager l'autonomie de votre enfant avec des objets du quotidien, simplement et en douceur.",
-        image: "https://images.unsplash.com/photo-1588053676159-45d625d90956?w=600&h=400&fit=crop",
+        image: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=800&q=80",
         date: "12 Déc 2024",
         readTime: "5 min"
     },
@@ -30,7 +30,7 @@ export const BLOG_POSTS: BlogPost[] = [
         id: 2,
         title: "Les bienfaits de la lecture du soir",
         excerpt: "Instaurer un rituel de lecture avant le coucher favorise l'imagination et renforce le lien parent-enfant. Nos conseils.",
-        image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=600&h=400&fit=crop",
+        image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=80",
         date: "08 Déc 2024",
         readTime: "3 min"
     },
@@ -38,7 +38,7 @@ export const BLOG_POSTS: BlogPost[] = [
         id: 3,
         title: "Idées déco pour une chambre féerique",
         excerpt: "Transformez la chambre de bébé en un cocon de douceur avec nos inspirations couleurs et accessoires.",
-        image: "https://images.unsplash.com/photo-1522771753035-1a5b6518f86f?w=600&h=400&fit=crop",
+        image: "https://images.unsplash.com/photo-1595856417223-2285819d25c3?w=800&q=80",
         date: "01 Déc 2024",
         readTime: "4 min"
     }

@@ -11,27 +11,28 @@ import { Loader2 } from 'lucide-react';
 
 export function Home() {
     const [products, setProducts] = useState<any[]>([]);
+    const [blogPosts, setBlogPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchProducts() {
+        async function fetchData() {
+            setLoading(true);
             try {
-                // Fetch all products for now
-                const { data, error } = await supabase
+                // Fetch products
+                const { data: prodData, error: prodErr } = await supabase
                     .from('products')
                     .select('*')
                     .order('created_at', { ascending: false })
                     .limit(20);
 
-                if (error) throw error;
+                if (prodErr) throw prodErr;
 
-                // Map DB fields to ProductCard interface
-                const mappedProducts = (data || []).map((p: any) => ({
+                const mappedProducts = (prodData || []).map((p: any) => ({
                     id: p.id,
                     title: p.title,
                     price: p.price,
-                    image: p.image || p.images?.[0] || '', // Fallback to first gallery image
-                    rating: 5, // Default rating since DB doesn't have it yet
+                    image: p.image || p.images?.[0] || '',
+                    rating: 5,
                     reviews: 0,
                     author: "Elya Design",
                     category: p.category,
@@ -39,16 +40,32 @@ export function Home() {
                     isNew: p.is_new,
                     aspect_ratio: p.aspect_ratio || 'portrait'
                 }));
-
                 setProducts(mappedProducts);
+
+                // Fetch blog posts
+                const { data: postData, error: postErr } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(3);
+
+                if (postErr) throw postErr;
+
+                if (postData && postData.length > 0) {
+                    setBlogPosts(postData);
+                } else {
+                    setBlogPosts(BLOG_POSTS);
+                }
+
             } catch (err) {
-                console.error('Error fetching home products:', err);
+                console.error('Error fetching home data:', err);
+                setBlogPosts(BLOG_POSTS);
             } finally {
                 setLoading(false);
             }
         }
 
-        fetchProducts();
+        fetchData();
     }, []);
 
     if (loading) {
@@ -77,7 +94,7 @@ export function Home() {
             </div>
             */}
 
-            <BlogSection posts={BLOG_POSTS} />
+            <BlogSection posts={blogPosts} />
             <ReviewsSlider />
             <SocialStream />
         </>

@@ -96,9 +96,7 @@ export function CategoryPage() {
     }, [categorySlug, subcategorySlug]);
 
     const displayTitle = normalizedSlug === 'soldes' ? 'Soldes' :
-        (subcategoryTitle
-            ? `${categoryTitle} - ${subcategoryTitle}`
-            : (categoryTitle || "Notre Collection"));
+        (subcategoryTitle || categoryTitle || "Notre Collection");
 
 
     return (
