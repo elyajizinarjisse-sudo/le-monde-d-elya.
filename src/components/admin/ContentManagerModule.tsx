@@ -1,14 +1,15 @@
 import { useState } from 'react';
 // Force HMR Update
-import { Image as ImageIcon, Type, Layout, Store, Newspaper, Images } from 'lucide-react';
+import { Image as ImageIcon, Type, Layout, Store, Newspaper, Images, Star } from 'lucide-react';
 import { BlogManager } from './BlogManager';
 import { GalleryManager } from './GalleryManager';
 import { CategoryManager } from './CategoryManager';
+import { ReviewManager } from './ReviewManager';
 import { HeroEditor } from './cms/HeroEditor';
 import { LegalEditor } from './cms/LegalEditor';
 
 export function ContentManagerModule() {
-    const [activeTab, setActiveTab] = useState<'categories' | 'legal' | 'hero' | 'blog' | 'gallery'>('categories');
+    const [activeTab, setActiveTab] = useState<'categories' | 'legal' | 'hero' | 'blog' | 'gallery' | 'reviews'>('categories');
 
     return (
         <div className="space-y-6">
@@ -56,6 +57,16 @@ export function ContentManagerModule() {
                     Galerie "Petits Lecteurs"
                 </button>
                 <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'reviews'
+                        ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    <Star className="inline-block w-4 h-4 mr-2" />
+                    Avis Clients
+                </button>
+                <button
                     onClick={() => setActiveTab('hero')}
                     className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'hero'
                         ? 'bg-white text-blue-600 border-b-2 border-blue-600'
@@ -81,6 +92,7 @@ export function ContentManagerModule() {
                 {activeTab === 'blog' && <BlogManager />}
                 {activeTab === 'gallery' && <GalleryManager />}
                 {activeTab === 'categories' && <CategoryManager />}
+                {activeTab === 'reviews' && <ReviewManager />}
                 {activeTab === 'hero' && <HeroEditor />}
 
                 {activeTab === 'legal' && <LegalEditor />}
