@@ -1,6 +1,22 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash, Save, X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
+import ReactQuill, { Quill } from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+// Register custom fonts with Quill
+const Font = Quill.import('formats/font');
+Font.whitelist = ['roboto', 'handlee', 'great-vibes'];
+Quill.register(Font, true);
+
+// Add font styles to head
+const style = document.createElement('style');
+style.innerHTML = `
+  .ql-font-roboto { font-family: 'Roboto', sans-serif !important; }
+  .ql-font-handlee { font-family: 'Handlee', cursive !important; }
+  .ql-font-great-vibes { font-family: 'Great Vibes', cursive !important; }
+`;
+document.head.appendChild(style);
 
 interface Post {
     id: number;
@@ -32,6 +48,23 @@ export function BlogManager() {
         author: 'Elya',
         date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
     });
+
+    // Quill modules configuration
+    const quillModules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+            [{ 'font': Font.whitelist }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'script': 'sub' }, { 'script': 'super' }],
+            ['blockquote', 'code-block'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'indent': '-1' }, { 'indent': '+1' }],
+            [{ 'align': [] }],
+            ['link', 'image', 'video'],
+            ['clean']
+        ],
+    };
 
     useEffect(() => {
         fetchPosts();
@@ -251,6 +284,20 @@ export function BlogManager() {
                             placeholder="Ex: Enfant lisant un livre dans un fauteuil confortable"
                             className="w-full p-2 border rounded-lg"
                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Contenu de l'article</label>
+                        <div className="bg-white rounded-lg overflow-hidden border">
+                            <ReactQuill
+                                theme="snow"
+                                value={formData.content || ''}
+                                onChange={content => setFormData({ ...formData, content })}
+                                modules={quillModules}
+                                className="h-96 mb-12"
+                                placeholder="Rédigez votre article ici..."
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

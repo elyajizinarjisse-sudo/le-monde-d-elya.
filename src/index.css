@@ -8,3 +8,12 @@
     @apply antialiased text-gray-900 bg-white;
   }
 }
+
+/* Quill Custom Fonts & Blog Styles */
+.ql-font-roboto { font-family: 'Roboto', sans-serif; }
+.ql-font-handlee { font-family: 'Handlee', cursive; }
+.ql-font-great-vibes { font-family: 'Great Vibes', cursive; }
+
+.prose h1, .prose h2, .prose h3 {
+  @apply font-cursive text-primary;
+}

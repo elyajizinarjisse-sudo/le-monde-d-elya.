@@ -118,10 +118,10 @@ export function BlogPostPage() {
                     <img src={post.image} alt={post.title} className="w-full h-auto object-cover max-h-[500px]" />
                 </div>
 
-                <div className="prose prose-lg prose-indigo mx-auto text-gray-700 whitespace-pre-wrap">
+                <div className="prose prose-lg prose-indigo mx-auto text-gray-700">
                     {/* If content exists (DB), show it. Otherwise show mock text */}
                     {post.content ? (
-                        <div dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br/>') }} />
+                        <div dangerouslySetInnerHTML={{ __html: post.content }} />
                     ) : (
                         <>
                             <p>
