@@ -1,6 +1,6 @@
 import { useState } from 'react';
 // Force HMR Update
-import { Image as ImageIcon, Type, Layout, Store, Newspaper, Images, Star } from 'lucide-react';
+import { Image as ImageIcon, Type, Layout, Store, Newspaper, Star, Grid } from 'lucide-react';
 import { BlogManager } from './BlogManager';
 import { GalleryManager } from './GalleryManager';
 import { CategoryManager } from './CategoryManager';
@@ -53,9 +53,10 @@ export function ContentManagerModule() {
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                 >
-                    <Images className="inline-block w-4 h-4 mr-2" />
-                    Galerie "Petits Lecteurs"
+                    <Grid className="inline-block w-4 h-4 mr-2" />
+                    Galerie Communauté
                 </button>
+
                 <button
                     onClick={() => setActiveTab('reviews')}
                     className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'reviews'

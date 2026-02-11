@@ -1,310 +1,268 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash, Save, X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, Save, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
 
 interface GalleryItem {
     id: number;
-    title: string;
-    image_url: string;
-    link_url: string;
+    media_url: string;
+    thumbnail_url?: string;
+    media_type: 'image' | 'video';
+    caption?: string;
+    author?: string;
+    is_visible: boolean;
     display_order: number;
 }
 
 export function GalleryManager() {
     const [items, setItems] = useState<GalleryItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [uploading, setUploading] = useState(false);
-    const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
-    const [isCreating, setIsCreating] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [editingItem, setEditingItem] = useState<Partial<GalleryItem> | null>(null);
 
-    // Form states
-    const [formData, setFormData] = useState<Partial<GalleryItem>>({
-        title: '',
-        image_url: '',
-        link_url: '/category/livres',
-        display_order: 0
-    });
+    const fetchItems = async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase
+            .from('community_gallery')
+            .select('*')
+            .order('display_order', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching gallery:', error);
+        } else {
+            setItems(data || []);
+        }
+        setIsLoading(false);
+    };
 
     useEffect(() => {
         fetchItems();
     }, []);
 
-    const fetchItems = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('featured_images')
-                .select('*')
-                .order('display_order', { ascending: true });
-
-            if (error) throw error;
-            setItems(data || []);
-        } catch (error) {
-            console.error('Error fetching gallery:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        try {
-            setUploading(true);
-            if (!event.target.files || event.target.files.length === 0) {
-                return;
-            }
-            const file = event.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from('gallery-images')
-                .upload(filePath, file);
-
-            if (uploadError) {
-                // Determine if we should try product-images if gallery-images fails (fallback)
-                throw uploadError;
-            }
-
-            const { data } = supabase.storage.from('gallery-images').getPublicUrl(filePath);
-            setFormData({ ...formData, image_url: data.publicUrl });
-        } catch (error: any) {
-            console.error(error);
-            alert('Erreur upload: ' + error.message);
-        } finally {
-            setUploading(false);
-        }
-    };
-
     const handleSave = async () => {
-        try {
-            setLoading(true);
-            const itemData = {
-                title: formData.title,
-                image_url: formData.image_url,
-                link_url: formData.link_url,
-                display_order: formData.display_order || items.length + 1
-            };
+        if (!editingItem?.media_url) {
+            alert('L\'URL du média est requise');
+            return;
+        }
 
-            if (editingItem) {
+        setIsSaving(true);
+        try {
+            if (editingItem.id) {
                 const { error } = await supabase
-                    .from('featured_images')
-                    .update(itemData)
+                    .from('community_gallery')
+                    .update(editingItem)
                     .eq('id', editingItem.id);
                 if (error) throw error;
             } else {
                 const { error } = await supabase
-                    .from('featured_images')
-                    .insert([itemData]);
+                    .from('community_gallery')
+                    .insert([editingItem]);
                 if (error) throw error;
             }
-
-            await fetchItems();
-            setIsCreating(false);
             setEditingItem(null);
-            resetForm();
+            fetchItems();
         } catch (error) {
             console.error('Error saving item:', error);
             alert('Erreur lors de la sauvegarde');
         } finally {
-            setLoading(false);
+            setIsSaving(false);
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Supprimer cette image ?')) return;
+        if (!confirm('Supprimer cet élément ?')) return;
 
-        try {
-            setLoading(true);
-            const { error } = await supabase.from('featured_images').delete().eq('id', id);
-            if (error) throw error;
-            await fetchItems();
-        } catch (error) {
-            console.error('Error deleting item:', error);
-        } finally {
-            setLoading(false);
+        const { error } = await supabase
+            .from('community_gallery')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert('Erreur lors de la suppression');
+        } else {
+            fetchItems();
         }
     };
 
-    const startEdit = (item: GalleryItem) => {
-        setEditingItem(item);
-        setFormData(item);
-        setIsCreating(true);
+    const toggleVisibility = async (item: GalleryItem) => {
+        const { error } = await supabase
+            .from('community_gallery')
+            .update({ is_visible: !item.is_visible })
+            .eq('id', item.id);
+
+        if (error) {
+            alert('Erreur lors de l\'action');
+        } else {
+            fetchItems();
+        }
     };
 
-    const resetForm = () => {
-        setFormData({
-            title: '',
-            image_url: '',
-            link_url: '/category/livres',
-            display_order: items.length + 1
-        });
-    };
-
-    if (isCreating) {
-        return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold">{editingItem ? 'Modifier l\'image' : 'Nouvelle image'}</h3>
-                    <button onClick={() => { setIsCreating(false); setEditingItem(null); resetForm(); }} className="p-2 hover:bg-gray-100 rounded-full">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Titre (affiché au survol)</label>
-                        <input
-                            type="text"
-                            value={formData.title}
-                            onChange={e => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full p-2 border rounded-lg"
-                        />
-                    </div>
-
-                    {/* Image Upload Section */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                        <div className="flex items-start gap-4">
-                            {formData.image_url ? (
-                                <div className="relative group w-32 h-32">
-                                    <img
-                                        src={formData.image_url}
-                                        alt="Prévisualisation"
-                                        className="w-full h-full object-cover rounded-lg border border-gray-200"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, image_url: '' })}
-                                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 bg-gray-50">
-                                    <ImageIcon size={24} className="mb-1" />
-                                    <span className="text-xs">Aucune</span>
-                                </div>
-                            )}
-
-                            <div className="flex-1 space-y-3">
-                                <div>
-                                    <label className="cursor-pointer inline-block">
-                                        <div className="flex items-center gap-2 px-4 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors">
-                                            {uploading ? (
-                                                <Loader2 className="animate-spin" size={18} />
-                                            ) : (
-                                                <Upload size={18} />
-                                            )}
-                                            <span className="text-sm font-medium">{uploading ? 'Envoi...' : 'Choisir une image'}</span>
-                                        </div>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
-                                            disabled={uploading}
-                                            className="hidden"
-                                        />
-                                    </label>
-                                </div>
-                                <input
-                                    type="text"
-                                    value={formData.image_url}
-                                    onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                                    className="w-full p-2 text-sm border border-gray-300 rounded-lg"
-                                    placeholder="Ou URL image..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Lien au clic (ex: /category/livres)</label>
-                        <input
-                            type="text"
-                            value={formData.link_url}
-                            onChange={e => setFormData({ ...formData, link_url: e.target.value })}
-                            className="w-full p-2 border rounded-lg"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Ordre d'affichage</label>
-                            <input
-                                type="number"
-                                value={formData.display_order}
-                                onChange={e => setFormData({ ...formData, display_order: parseInt(e.target.value) })}
-                                className="w-full p-2 border rounded-lg"
-                            />
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={handleSave}
-                        disabled={loading || uploading}
-                        className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                        Sauvegarder
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    if (isLoading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-lg font-medium text-gray-900">Galerie "Nos petits lecteurs"</h3>
-                    <p className="text-sm text-gray-500">Gérez les 4 images affichées sur la page d'accueil</p>
-                </div>
+                <h2 className="text-xl font-bold text-gray-800">Galerie Communautaire</h2>
                 <button
-                    onClick={() => { resetForm(); setIsCreating(true); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    onClick={() => setEditingItem({
+                        media_type: 'image',
+                        is_visible: true,
+                        display_order: items.length * 10 + 10
+                    })}
+                    className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
                 >
                     <Plus size={20} />
-                    Ajouter
+                    Ajouter un média
                 </button>
             </div>
 
-            {loading ? (
-                <div className="text-center py-12"><Loader2 className="animate-spin mx-auto text-indigo-600" /></div>
-            ) : items.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl">
-                    <p>Aucune image dans la galerie.</p>
-                </div>
-            ) : (
-                <div className="grid gap-4">
-                    {items.map(item => (
-                        <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4 items-center">
-                            <span className="font-mono text-gray-400 w-6">{item.display_order}</span>
-                            <img
-                                src={item.image_url}
-                                alt={item.title}
-                                className="w-16 h-16 object-cover rounded-lg bg-gray-100"
-                            />
-                            <div className="flex-1">
-                                <h4 className="font-bold text-gray-900">{item.title}</h4>
-                                <p className="text-sm text-gray-500 truncate">{item.link_url}</p>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <button
-                                    onClick={() => startEdit(item)}
-                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+            {/* Modal / Form */}
+            {editingItem && (
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                    <h3 className="font-bold text-gray-800 mb-4">
+                        {editingItem.id ? 'Modifier le média' : 'Nouveau média'}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Type de média</label>
+                                <select
+                                    value={editingItem.media_type}
+                                    onChange={(e) => setEditingItem({ ...editingItem, media_type: e.target.value as 'image' | 'video' })}
+                                    className="w-full border border-gray-300 rounded-lg p-2"
                                 >
-                                    <Edit size={18} />
-                                </button>
+                                    <option value="image">Image</option>
+                                    <option value="video">Vidéo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">URL du média (Direct Link)</label>
+                                <input
+                                    type="text"
+                                    value={editingItem.media_url || ''}
+                                    onChange={(e) => setEditingItem({ ...editingItem, media_url: e.target.value })}
+                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                    placeholder="https://..."
+                                />
+                            </div>
+                            {editingItem.media_type === 'video' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">URL de la miniature (Thumbnail)</label>
+                                    <input
+                                        type="text"
+                                        value={editingItem.thumbnail_url || ''}
+                                        onChange={(e) => setEditingItem({ ...editingItem, thumbnail_url: e.target.value })}
+                                        className="w-full border border-gray-300 rounded-lg p-2"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Légende</label>
+                                <input
+                                    type="text"
+                                    value={editingItem.caption || ''}
+                                    onChange={(e) => setEditingItem({ ...editingItem, caption: e.target.value })}
+                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                    placeholder="Ex: Mon doudou préféré"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Client (Auteur)</label>
+                                <input
+                                    type="text"
+                                    value={editingItem.author || ''}
+                                    onChange={(e) => setEditingItem({ ...editingItem, author: e.target.value })}
+                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                    placeholder="Ex: Marie P."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ordre d'affichage</label>
+                                <input
+                                    type="number"
+                                    value={editingItem.display_order || 0}
+                                    onChange={(e) => setEditingItem({ ...editingItem, display_order: parseInt(e.target.value) })}
+                                    className="w-full border border-gray-300 rounded-lg p-2"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button
+                            onClick={() => setEditingItem(null)}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                        >
+                            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Grid display */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {items.map((item) => (
+                    <div
+                        key={item.id}
+                        className={`bg-white rounded-xl border-2 overflow-hidden transition-all duration-300 ${item.is_visible ? 'border-gray-100' : 'border-gray-200 grayscale'}`}
+                    >
+                        <div className="relative aspect-square">
+                            <img
+                                src={item.media_type === 'video' ? (item.thumbnail_url || 'https://via.placeholder.com/400x400?text=Video') : item.media_url}
+                                alt={item.caption}
+                                className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-2 right-2 flex gap-1">
+                                <span className="bg-black/60 text-white p-1 rounded-md text-[10px] flex items-center gap-1 uppercase font-bold">
+                                    {item.media_type === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}
+                                    {item.media_type}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="p-4">
+                            <p className="text-sm font-bold text-gray-800 line-clamp-1">{item.caption || 'Sans légende'}</p>
+                            <p className="text-xs text-gray-500 mb-4">Par {item.author || 'Inconnu'}</p>
+                            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => toggleVisibility(item)}
+                                        className={`p-2 rounded-lg transition-colors ${item.is_visible ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                        title={item.is_visible ? 'Masquer' : 'Afficher'}
+                                    >
+                                        {item.is_visible ? <Eye size={18} /> : <EyeOff size={18} />}
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingItem(item)}
+                                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                    >
+                                        <Save size={18} />
+                                    </button>
+                                </div>
                                 <button
                                     onClick={() => handleDelete(item.id)}
-                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                                 >
-                                    <Trash size={18} />
+                                    <Trash2 size={18} />
                                 </button>
                             </div>
                         </div>
-                    ))}
+                    </div>
+                ))}
+            </div>
+
+            {items.length === 0 && !isLoading && (
+                <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <ImageIcon className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">Aucun média dans la galerie pour le moment.</p>
                 </div>
             )}
         </div>
