@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { ArrowLeft } from 'lucide-react';
 import { ProductCard } from '../home/ProductCard';
+import { SEO } from '../common/SEO';
 import { supabase } from '../../lib/supabase';
 
 export function CategoryPage() {
@@ -101,10 +101,11 @@ export function CategoryPage() {
 
     return (
         <div className="container mx-auto px-4 py-8 min-h-screen">
-            <Helmet>
-                <title>{displayTitle} | Le Monde d'Elya</title>
-                <meta name="description" content={`Découvrez notre sélection. Livraison rapide.`} />
-            </Helmet>
+            <SEO
+                title={displayTitle}
+                description={`Découvrez notre sélection de ${displayTitle?.toLowerCase()} dans la boutique magique Le Monde d'Elya. Livraison rapide au Québec.`}
+                url={`/category/${categorySlug}${subcategorySlug ? `/${subcategorySlug}` : ''}`}
+            />
             <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary mb-8 transition-colors">
                 <ArrowLeft size={20} />
                 Retour à l'accueil

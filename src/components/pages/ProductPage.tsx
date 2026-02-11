@@ -5,6 +5,7 @@ import { ArrowLeft, Star, Heart, ShoppingBag, Truck, ShieldCheck, Loader2, Image
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../lib/currency';
+import { SEO } from '../common/SEO';
 import type { Product } from '../home/ProductCard';
 
 interface ProductVariant {
@@ -359,8 +360,36 @@ export function ProductPage() {
     const galleryImages = uniqueImages;
 
 
+    const productSchema = product ? {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": product.title,
+        "image": product.image,
+        "description": product.description || product.title,
+        "brand": {
+            "@type": "Brand",
+            "name": "Le Monde d'Elya"
+        },
+        "offers": {
+            "@type": "Offer",
+            "priceCurrency": "CAD",
+            "price": product.price,
+            "availability": "https://schema.org/InStock"
+        }
+    } : null;
+
     return (
         <div className="bg-gray-50 min-h-screen pb-20">
+            {product && (
+                <SEO
+                    title={product.title}
+                    description={product.description || `Découvrez ${product.title} dans la boutique magique Le Monde d'Elya. Livraison rapide au Québec.`}
+                    image={product.image}
+                    url={`/product/${product.id}`}
+                    type="product"
+                    schemaData={productSchema}
+                />
+            )}
             {/* Breadcrumb */}
             <div className="container mx-auto px-4 py-6">
                 <Link to="/" className="inline-flex items-center text-gray-500 hover:text-primary transition-colors">

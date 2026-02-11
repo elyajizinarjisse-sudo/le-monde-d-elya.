@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from 'react';
 import { Hero } from '../home/Hero';
 import { ProductSection } from '../home/ProductSection';
 import { BlogSection } from '../home/BlogSection';
 import { ReviewsSlider } from '../home/ReviewsSlider';
 import { SocialStream } from '../home/SocialStream';
+import { SEO } from '../common/SEO';
 import { supabase } from '../../lib/supabase';
 import { BLOG_POSTS } from '../../data/mockData'; // Keep blog posts mock for now if no DB table
 import { Loader2 } from 'lucide-react';
@@ -83,8 +83,27 @@ export function Home() {
     // We can also filter by category if we want specific sections
     // const toys = products.filter(p => p.category === 'Jouets');
 
+    const storeSchema = {
+        "@context": "https://schema.org",
+        "@type": "OnlineStore",
+        "name": "Le Monde d'Elya",
+        "description": "Boutique magique pour enfants au Québec",
+        "url": "https://le-monde-d-elya.netlify.app",
+        "logo": "https://le-monde-d-elya.netlify.app/logo.png",
+        "address": {
+            "@type": "PostalAddress",
+            "addressRegion": "QC",
+            "addressCountry": "CA"
+        }
+    };
+
     return (
         <>
+            <SEO
+                title="Boutique Magique pour Enfants"
+                description="Découvrez Le Monde d'Elya : Livres, jouets éducatifs, décoration féerique et bien plus pour l'éveil de vos enfants au Québec."
+                schemaData={storeSchema}
+            />
             <Hero />
             <ProductSection title="Nos Dernières Créations" products={featuredProducts} />
 

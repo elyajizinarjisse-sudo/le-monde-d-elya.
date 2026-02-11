@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, Clock, Calendar, User, Loader2 } from 'lucide-react';
+import { SEO } from '../common/SEO';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
@@ -15,6 +15,7 @@ interface BlogPost {
     date: string;
     read_time?: string; // DB column name might be read_time
     readTime?: string; // Mock data name
+    author?: string;
 }
 
 export function BlogPostPage() {
@@ -76,12 +77,29 @@ export function BlogPostPage() {
     // Handle both naming conventions (read_time from DB, readTime from mock)
     const readTimeDisplay = post.read_time || post.readTime || '5 min';
 
+    const articleSchema = post ? {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "image": post.image,
+        "datePublished": post.date,
+        "author": {
+            "@type": "Person",
+            "name": post.author || "Équipe Elya"
+        },
+        "description": post.excerpt
+    } : null;
+
     return (
         <div className="min-h-screen bg-white">
-            <Helmet>
-                <title>{post.title} | Le Journal d'Elya</title>
-                <meta name="description" content={post.excerpt} />
-            </Helmet>
+            <SEO
+                title={post.title}
+                description={post.excerpt}
+                image={post.image}
+                url={`/blog/${post.id}`}
+                type="article"
+                schemaData={articleSchema}
+            />
 
             <article className="max-w-3xl mx-auto px-4 py-12">
                 <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary mb-8 transition-colors">
